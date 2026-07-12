@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WWM GvG Timer v5</title>
+  <style>
+    :root {
+      --bg:           #0f172a;
+      --panel:        #1e293b;
+      --panel2:       #273447;
+      --text:         #f1f5f9;
+      --muted:        #94a3b8;
+      --border:       #334155;
+      --green:        #16a34a;
+      --amber:        #d97706;
+      --red:          #dc2626;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: var(--bg);
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--text);
+      padding: 20px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 440px;
+      background: var(--panel);
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      padding: 28px 24px;
+    }
+
+    h1 {
+      font-size: 1.1rem;
+      text-align: center;
+      color: var(--muted);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .time {
+      font-size: 4.5rem;
+      font-weight: 700;
+      text-align: center;
+      letter-spacing: 4px;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+      margin: 8px 0 22px;
+    }
+
+    .adjustments {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 1rem;
+      color: var(--text);
+      outline: none;
+    }
+
+    input[type="number"]:focus {
+      border-color: #3b82f6;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      transition: filter 0.15s ease, transform 0.05s ease;
+    }
+
+    button:active  { transform: translateY(1px); }
+    button:hover   { filter: brightness(1.12); }
+
+    .btn-start { background: #2563eb; color: white; }
+    .btn-pause { background: var(--panel2); color: var(--text); border: 1px solid var(--border); }
+    .btn-reset { background: #374151; color: white; }
+
+    /* ── Current event banner ──────────────────────── */
+    .event-box {
+      border-radius: 14px;
+      padding: 22px 16px;
+      text-align: center;
+      background: var(--green);
+      transition: background 0.25s ease;
+      margin-bottom: 10px;
+    }
+
+    .event-label {
+      font-size: 2.1rem;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: 1px;
+    }
+
+    .event-sub {
+      margin-top: 7px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      opacity: 0.9;
+    }
+
+    /* ── Next event row ────────────────────────────── */
+    .next-row {
+      background: var(--panel2);
+      border-radius: 10px;
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.87rem;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    .next-row .next-label {
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .next-row .next-time {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+    }
+
+    /* ── Tank button ───────────────────────────────── */
+    .tank-title {
+      text-align: center;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .tank-button {
+      width: 100%;
+      background: #1f2937;
+      color: white;
+      font-size: 1.1rem;
+      font-weight: 700;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .tank-button.warning {
+      background: #ea580c;
+      border-color: #ea580c;
+    }
+
+    /* ── Quiet button ──────────────────────────────── */
+    .quiet-button {
+      width: 100%;
+      margin-top: 12px;
+      background: #1e3a5f;
+      color: #93c5fd;
+      font-size: 1rem;
+      font-weight: 700;
+      padding: 13px;
+      border-radius: 12px;
+      border: 1px solid #2d5a8e;
+    }
+
+    .quiet-button:hover {
+      background: #1d4ed8;
+      color: white;
+      border-color: #1d4ed8;
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>WWM — GvG Timer v5</h1>
+  <div class="time" id="timeDisplay">30:00</div>
+
+  <div class="adjustments">
+    <div>
+      <label for="minutesInput">Minutes</label>
+      <input id="minutesInput" type="number" min="0" max="999" value="30" />
+    </div>
+    <div>
+      <label for="secondsInput">Seconds</label>
+      <input id="secondsInput" type="number" min="0" max="59" value="0" />
+    </div>
+  </div>
+
+  <div class="buttons">
+    <button class="btn-start" id="startBtn">Start</button>
+    <button class="btn-pause" id="pauseBtn">Pause</button>
+    <button class="btn-reset" id="resetBtn">Reset</button>
+  </div>
+
+  <div class="event-box" id="eventBox">
+    <div class="event-label" id="eventLabel">HAVE FUN</div>
+    <div class="event-sub"   id="eventSub">Match started — good luck!</div>
+  </div>
+
+  <div class="next-row">
+    <span>Next</span>
+    <span class="next-label" id="nextLabel">—</span>
+    <span class="next-time"  id="nextTime">—</span>
+  </div>
+
+  <div class="tank-title">Tank Status</div>
+  <button class="tank-button" id="tankBtn">Tank Ready</button>
+
+  <button class="quiet-button" id="quietBtn">🔇 Play Quiet Sound</button>
+</div>
+
+<script>
+  // ── Audio (place .wav files in the same folder as this HTML file) ──────────
+  const AUDIO = {
+    jungle1:   new Audio('jungle1m.wav'),
+    jungle30:  new Audio('jungle30s.wav'),
+    jungleNow: new Audio('jungleNow.wav'),
+    boss:      new Audio('BossWarning.wav'),
+    quiet:     new Audio('quiet.wav'),
+  };
+
+  // ── Event schedule ──────────────────────────────────────────────────────────
+  // `at` = seconds remaining when the event fires.
+  // Events are grouped into blocks for easy editing.
+  // Audio keys map to the AUDIO object above.
+  //
+  const EVENTS = [
+
+    // ── JUNGLE 25 ────────────────────────────────────────────────────
+    { at: 26*60,      label: 'JUNGLE  1 MIN',  sub: 'Jungle spawns in 1:00',  color: 'amber', audio: 'jungle1'   },
+    { at: 25*60+45,   label: 'BOSS WARNING',   sub: 'Boss spawn incoming',    color: 'red',   audio: 'boss'      },
+    { at: 25*60+30,   label: 'JUNGLE  30 SEC', sub: 'Jungle spawns in 0:30',  color: 'amber', audio: 'jungle30'  },
+    { at: 25*60,      label: 'JUNGLE ACTIVE',  sub: 'Jungle is up now!',      color: 'red',   audio: 'jungleNow' },
+
+    // ── JUNGLE 20 ────────────────────────────────────────────────────
+    { at: 21*60,      label: 'JUNGLE  1 MIN',  sub: 'Jungle spawns in 1:00',  color: 'amber', audio: 'jungle1'   },
+    { at: 20*60+30,   label: 'JUNGLE  30 SEC', sub: 'Jungle spawns in 0:30',  color: 'amber', audio: 'jungle30'  },
+    { at: 20*60,      label: 'JUNGLE ACTIVE',  sub: 'Jungle is up now!',      color: 'red',   audio: 'jungleNow' },
+
+    // ── JUNGLE 15 ────────────────────────────────────────────────────
+    { at: 16*60,      label: 'JUNGLE  1 MIN',  sub: 'Jungle spawns in 1:00',  color: 'amber', audio: 'jungle1'   },
+    { at: 15*60+45,   label: 'BOSS WARNING',   sub: 'Boss spawn incoming',    color: 'red',   audio: 'boss'      },
+    { at: 15*60+30,   label: 'JUNGLE  30 SEC', sub: 'Jungle spawns in 0:30',  color: 'amber', audio: 'jungle30'  },
+    { at: 15*60,      label: 'JUNGLE ACTIVE',  sub: 'Jungle is up now!',      color: 'red',   audio: 'jungleNow' },
+
+    // ── JUNGLE 10 ────────────────────────────────────────────────────
+    { at: 11*60,      label: 'JUNGLE  1 MIN',  sub: 'Jungle spawns in 1:00',  color: 'amber', audio: 'jungle1'   },
+    { at: 10*60+30,   label: 'JUNGLE  30 SEC', sub: 'Jungle spawns in 0:30',  color: 'amber', audio: 'jungle30'  },
+    { at: 10*60,      label: 'JUNGLE ACTIVE',  sub: 'Jungle is up now!',      color: 'red',   audio: 'jungleNow' },
+
+    // ── JUNGLE 5 ─────────────────────────────────────────────────────
+    { at:  6*60,      label: 'JUNGLE  1 MIN',  sub: 'Jungle spawns in 1:00',  color: 'amber', audio: 'jungle1'   },
+    { at:  5*60+30,   label: 'JUNGLE  30 SEC', sub: 'Jungle spawns in 0:30',  color: 'amber', audio: 'jungle30'  },
+    { at:  5*60,      label: 'JUNGLE ACTIVE',  sub: 'Jungle is up now!',      color: 'red',   audio: 'jungleNow' },
+
+  ];
+  // ────────────────────────────────────────────────────────────────────────────
+
+  const DEFAULT_MIN = 30;
+  const DEFAULT_SEC = 0;
+
+  const timeDisplay  = document.getElementById('timeDisplay');
+  const minutesInput = document.getElementById('minutesInput');
+  const secondsInput = document.getElementById('secondsInput');
+  const startBtn     = document.getElementById('startBtn');
+  const pauseBtn     = document.getElementById('pauseBtn');
+  const resetBtn     = document.getElementById('resetBtn');
+  const eventBox     = document.getElementById('eventBox');
+  const eventLabel   = document.getElementById('eventLabel');
+  const eventSub     = document.getElementById('eventSub');
+  const nextLabel    = document.getElementById('nextLabel');
+  const nextTime     = document.getElementById('nextTime');
+  const tankBtn      = document.getElementById('tankBtn');
+
+  // ── High-accuracy timekeeping ───────────────────────────────────────────────
+  // The countdown is NEVER advanced by counting ticks. Instead we anchor an
+  // absolute "deadline" timestamp the moment the timer starts, and every frame
+  // we ask the real clock how much time is actually left. Interval/animation
+  // drift, event-loop lag, and background-tab throttling can never accumulate
+  // error, because we recompute from wall-clock truth on every update.
+  //
+  //   endEpoch  – Date.now()-style ms timestamp at which the countdown hits 0.
+  //   We poll with a self-correcting setTimeout aimed at the next whole-second
+  //   boundary, and we render via the timestamp delta — not a decrement.
+
+  let endEpoch         = 0;     // ms; deadline when remaining === 0
+  let remainingSeconds = DEFAULT_MIN * 60 + DEFAULT_SEC; // last rendered whole second
+  let timerId          = null;  // setTimeout handle for the countdown
+  let isPaused         = false;
+  let pausedRemainMs   = 0;     // ms left at the moment of pause
+  let firedSet         = new Set();
+  let lastSeenSecond   = Infinity; // for catch-up event scanning
+
+  let tankEndEpoch     = 0;
+  let tankTimerId      = null;
+  let tankRemaining    = 0;
+
+  function fmt(s) {
+    s = Math.max(0, s);
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  }
+
+  function playAudio(key) {
+    try {
+      const a = AUDIO[key];
+      a.currentTime = 0;
+      a.play().catch(() => {});
+    } catch (e) {}
+  }
+
+  function showEvent(ev) {
+    const bg = { red: '#dc2626', amber: '#d97706', green: '#16a34a' };
+    eventBox.style.background = bg[ev.color] ?? '#16a34a';
+    eventLabel.textContent = ev.label;
+    eventSub.textContent   = ev.sub;
+  }
+
+  function showDefaultEvent() {
+    eventBox.style.background = '#16a34a';
+    eventLabel.textContent = 'HAVE FUN';
+    eventSub.textContent   = 'Match started — good luck!';
+  }
+
+  function updateNextEvent() {
+    const next = EVENTS
+      .filter((ev, i) => !firedSet.has(i) && ev.at < remainingSeconds)
+      .sort((a, b) => b.at - a.at)[0];
+
+    if (next) {
+      nextLabel.textContent = next.label;
+      nextTime.textContent  = `in ${fmt(remainingSeconds - next.at)}`;
+    } else {
+      nextLabel.textContent = '—';
+      nextTime.textContent  = '—';
+    }
+  }
+
+  // Fire every event whose threshold lies in the window we just crossed.
+  // Using "<= ev.at" + firedSet means a skipped second (throttled tab,
+  // GC pause, the page being asleep) still triggers the alert exactly once,
+  // and never double-fires.
+  function checkEvents(currentSecond) {
+    EVENTS.forEach((ev, i) => {
+      if (!firedSet.has(i) && currentSecond <= ev.at && lastSeenSecond > ev.at) {
+        firedSet.add(i);
+        playAudio(ev.audio);
+        showEvent(ev);
+      }
+    });
+    lastSeenSecond = currentSecond;
+  }
+
+  function finishCountdown() {
+    clearTimeout(timerId);
+    timerId = null;
+    remainingSeconds = 0;
+    timeDisplay.textContent    = '00:00';
+    eventBox.style.background  = '#111827';
+    eventLabel.textContent     = 'MATCH OVER';
+    eventSub.textContent       = 'Countdown finished';
+    nextLabel.textContent      = '—';
+    nextTime.textContent       = '—';
+  }
+
+  // One render pass driven purely by the wall clock.
+  function renderTick() {
+    const msLeft = endEpoch - Date.now();
+
+    if (msLeft <= 0) {
+      // Make sure any events between lastSeenSecond and 0 still fire.
+      checkEvents(0);
+      finishCountdown();
+      return;
+    }
+
+    // ceil so the display shows e.g. "00:01" until the instant it truly hits 0.
+    const sec = Math.ceil(msLeft / 1000);
+    remainingSeconds = sec;
+    timeDisplay.textContent = fmt(sec);
+    checkEvents(sec);
+    updateNextEvent();
+
+    // Self-correcting schedule: aim the next wake-up at the next whole-second
+    // boundary instead of blindly waiting 1000ms. This keeps the digit flip
+    // aligned to real time and prevents slow visual drift.
+    const msToNextBoundary = msLeft - (sec - 1) * 1000;
+    timerId = setTimeout(renderTick, Math.max(20, msToNextBoundary));
+  }
+
+  function readInputs() {
+    let m = parseInt(minutesInput.value, 10);
+    let s = parseInt(secondsInput.value, 10);
+    if (isNaN(m) || m < 0) m = 0;
+    if (isNaN(s) || s < 0) s = 0;
+    if (s > 59) s = 59;
+    minutesInput.value = m;
+    secondsInput.value = s;
+    remainingSeconds = m * 60 + s;
+    timeDisplay.textContent = fmt(remainingSeconds);
+  }
+
+  // ── Controls ──────────────────────────────────────────────────────────────
+
+  startBtn.addEventListener('click', () => {
+    if (timerId) return; // already running
+
+    if (isPaused) {
+      // Resume: re-anchor the deadline to the remaining time.
+      endEpoch = Date.now() + pausedRemainMs;
+      isPaused = false;
+    } else {
+      // Fresh start.
+      readInputs();
+      firedSet.clear();
+      lastSeenSecond = Infinity;
+      showDefaultEvent();
+      endEpoch = Date.now() + remainingSeconds * 1000;
+    }
+
+    updateNextEvent();
+    renderTick();
+  });
+
+  pauseBtn.addEventListener('click', () => {
+    if (!timerId) return;
+    clearTimeout(timerId);
+    timerId = null;
+    pausedRemainMs = Math.max(0, endEpoch - Date.now());
+    isPaused = true;
+  });
+
+  resetBtn.addEventListener('click', () => {
+    clearTimeout(timerId);
+    timerId = null;
+    isPaused = false;
+    pausedRemainMs = 0;
+    lastSeenSecond = Infinity;
+    minutesInput.value = DEFAULT_MIN;
+    secondsInput.value = DEFAULT_SEC;
+    firedSet.clear();
+    readInputs();
+    showDefaultEvent();
+    updateNextEvent();
+  });
+
+  minutesInput.addEventListener('input', () => { if (!timerId && !isPaused) { readInputs(); updateNextEvent(); } });
+  secondsInput.addEventListener('input', () => { if (!timerId && !isPaused) { readInputs(); updateNextEvent(); } });
+
+  // When a throttled/backgrounded tab regains focus, immediately re-sync the
+  // display and fire any callouts we slept through, rather than waiting for the
+  // next scheduled wake-up.
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && timerId) {
+      clearTimeout(timerId);
+      renderTick();
+    }
+  });
+
+  // ── Tank countdown (same wall-clock approach) ──────────────────────────────
+
+  function setTankReady() {
+    tankBtn.classList.remove('warning');
+    tankBtn.textContent = 'Tank Ready';
+  }
+
+  function renderTankTick() {
+    const msLeft = tankEndEpoch - Date.now();
+    if (msLeft <= 0) {
+      clearTimeout(tankTimerId);
+      tankTimerId = null;
+      setTankReady();
+      return;
+    }
+    const sec = Math.ceil(msLeft / 1000);
+    tankRemaining = sec;
+    if (sec <= 15) {
+      tankBtn.classList.add('warning');
+      tankBtn.innerHTML = `SAVE VITALITY<br><span style="font-size:0.9rem">${fmt(sec)}</span>`;
+    } else {
+      tankBtn.classList.remove('warning');
+      tankBtn.textContent = fmt(sec);
+    }
+    const msToNextBoundary = msLeft - (sec - 1) * 1000;
+    tankTimerId = setTimeout(renderTankTick, Math.max(20, msToNextBoundary));
+  }
+
+  function startTankCountdown() {
+    clearTimeout(tankTimerId);
+    tankEndEpoch = Date.now() + 100 * 1000;
+    renderTankTick();
+  }
+
+  tankBtn.addEventListener('click', startTankCountdown);
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && tankTimerId) {
+      clearTimeout(tankTimerId);
+      renderTankTick();
+    }
+  });
+
+  // ── Quiet button ──────────────────────────────────────────────────────────
+  document.getElementById('quietBtn').addEventListener('click', () => {
+    playAudio('quiet');
+  });
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  readInputs();
+  updateNextEvent();
+</script>
+</body>
+</html>
