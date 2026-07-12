@@ -569,4 +569,100 @@
     timeDisplay.textContent = fmt(remainingSeconds);
   }
 
-  // ── Cont
+  // ── Controls ──────────────────────────────────────────────────────────────
+
+  function setToggleRunning() {
+    toggleBtn.textContent = 'Pause';
+    toggleBtn.classList.remove('is-paused');
+    toggleBtn.style.background = '#2563eb';
+  }
+
+  function setTogglePaused() {
+    toggleBtn.textContent = 'Paused';
+    toggleBtn.classList.add('is-paused');
+    toggleBtn.style.background = '#ea580c';
+  }
+
+  function setToggleStopped() {
+    toggleBtn.textContent = 'Start';
+    toggleBtn.classList.remove('is-paused');
+    toggleBtn.style.background = '#2563eb';
+  }
+
+  toggleBtn.addEventListener('click', () => {
+    if (timerId) {
+      // Running → pause.
+      clearTimeout(timerId);
+      timerId = null;
+      pausedRemainMs = Math.max(0, endEpoch - Date.now());
+      isPaused = true;
+      setTogglePaused();
+      return;
+    }
+
+    if (isPaused) {
+      // Resume: re-anchor the deadline to the remaining time.
+      endEpoch = Date.now() + pausedRemainMs;
+      isPaused = false;
+    } else {
+      // Fresh start.
+      readInputs();
+      firedSet.clear();
+      lastSeenSecond = Infinity;
+      showDefaultEvent();
+      endEpoch = Date.now() + remainingSeconds * 1000;
+    }
+
+    setToggleRunning();
+    updateNextEvent();
+    renderTick();
+  });
+
+  resetBtn.addEventListener('click', () => {
+    clearTimeout(timerId);
+    timerId = null;
+    isPaused = false;
+    pausedRemainMs = 0;
+    lastSeenSecond = Infinity;
+    minutesInput.value = DEFAULT_MIN;
+    secondsInput.value = DEFAULT_SEC;
+    firedSet.clear();
+    readInputs();
+    showDefaultEvent();
+    updateNextEvent();
+    setToggleStopped();
+  });
+
+  minutesInput.addEventListener('input', () => { if (!timerId && !isPaused) { readInputs(); updateNextEvent(); } });
+  secondsInput.addEventListener('input', () => { if (!timerId && !isPaused) { readInputs(); updateNextEvent(); } });
+
+  // When a throttled/backgrounded tab regains focus, immediately re-sync the
+  // display and fire any callouts we slept through, rather than waiting for the
+  // next scheduled wake-up.
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && timerId) {
+      clearTimeout(timerId);
+      renderTick();
+    }
+  });
+
+  // ── Help modal ───────────────────────────────────────────────────────────
+  const helpBtn     = document.getElementById('helpBtn');
+  const helpOverlay = document.getElementById('helpOverlay');
+  const helpClose   = document.getElementById('helpClose');
+
+  helpBtn.addEventListener('click', () => helpOverlay.classList.add('open'));
+  helpClose.addEventListener('click', () => helpOverlay.classList.remove('open'));
+  helpOverlay.addEventListener('click', (e) => {
+    if (e.target === helpOverlay) helpOverlay.classList.remove('open');
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') helpOverlay.classList.remove('open');
+  });
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  readInputs();
+  updateNextEvent();
+</script>
+</body>
+</html>
