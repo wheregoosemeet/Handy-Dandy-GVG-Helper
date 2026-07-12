@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WWM GvG Timer v5</title>
+  <title>WWM GvG Timer v6</title>
   <style>
-    :root {
+    :root[data-theme="dark"] {
       --bg:           #0f172a;
       --panel:        #1e293b;
       --panel2:       #273447;
@@ -15,6 +15,20 @@
       --green:        #16a34a;
       --amber:        #d97706;
       --red:          #dc2626;
+      --shadow:       rgba(0,0,0,0.45);
+    }
+
+    :root[data-theme="light"] {
+      --bg:           #f1f5f9;
+      --panel:        #ffffff;
+      --panel2:       #f8fafc;
+      --text:         #0f172a;
+      --muted:        #64748b;
+      --border:       #e2e8f0;
+      --green:        #16a34a;
+      --amber:        #d97706;
+      --red:          #dc2626;
+      --shadow:       rgba(15,23,42,0.12);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -24,37 +38,59 @@
       display: grid;
       place-items: center;
       background: var(--bg);
-      font-family: Arial, Helvetica, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
       color: var(--text);
       padding: 20px;
+      transition: background 0.2s ease, color 0.2s ease;
     }
 
     .card {
+      position: relative;
       width: 100%;
-      max-width: 440px;
+      max-width: 420px;
       background: var(--panel);
+      border: 1px solid var(--border);
       border-radius: 20px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      box-shadow: 0 16px 48px var(--shadow);
       padding: 28px 24px;
+      transition: background 0.2s ease, border-color 0.2s ease;
     }
 
-    h1 {
-      font-size: 1.1rem;
-      text-align: center;
-      color: var(--muted);
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
+    .top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       margin-bottom: 4px;
     }
 
+    h1 {
+      font-size: 0.95rem;
+      color: var(--muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .theme-toggle {
+      width: auto;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
     .time {
-      font-size: 4.5rem;
+      font-size: 4.2rem;
       font-weight: 700;
       text-align: center;
-      letter-spacing: 4px;
+      letter-spacing: 3px;
       font-variant-numeric: tabular-nums;
       color: var(--text);
-      margin: 8px 0 22px;
+      margin: 12px 0 22px;
     }
 
     .adjustments {
@@ -66,11 +102,12 @@
 
     label {
       display: block;
-      font-size: 0.78rem;
+      font-size: 0.72rem;
       color: var(--muted);
       margin-bottom: 5px;
       text-transform: uppercase;
       letter-spacing: 0.06em;
+      font-weight: 600;
     }
 
     input[type="number"] {
@@ -90,7 +127,7 @@
 
     .buttons {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: 1fr 1fr;
       gap: 10px;
       margin-bottom: 20px;
     }
@@ -99,24 +136,37 @@
       border: none;
       border-radius: 10px;
       padding: 12px 14px;
-      font-size: 1rem;
+      font-size: 0.95rem;
       font-weight: 700;
       cursor: pointer;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.03em;
       transition: filter 0.15s ease, transform 0.05s ease;
     }
 
     button:active  { transform: translateY(1px); }
-    button:hover   { filter: brightness(1.12); }
+    button:hover   { filter: brightness(1.08); }
 
     .btn-start { background: #2563eb; color: white; }
     .btn-pause { background: var(--panel2); color: var(--text); border: 1px solid var(--border); }
-    .btn-reset { background: #374151; color: white; }
+
+    .btn-reset {
+      width: 100%;
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+
+    .btn-reset:hover {
+      color: var(--text);
+      border-color: var(--muted);
+    }
 
     /* ── Current event banner ──────────────────────── */
     .event-box {
       border-radius: 14px;
-      padding: 22px 16px;
+      padding: 20px 16px;
       text-align: center;
       background: var(--green);
       transition: background 0.25s ease;
@@ -124,28 +174,31 @@
     }
 
     .event-label {
-      font-size: 2.1rem;
+      font-size: 1.9rem;
       font-weight: 800;
       line-height: 1;
-      letter-spacing: 1px;
+      letter-spacing: 0.5px;
+      color: #fff;
     }
 
     .event-sub {
       margin-top: 7px;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       font-weight: 600;
       opacity: 0.9;
+      color: #fff;
     }
 
     /* ── Next event row ────────────────────────────── */
     .next-row {
       background: var(--panel2);
+      border: 1px solid var(--border);
       border-radius: 10px;
       padding: 10px 16px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.87rem;
+      font-size: 0.85rem;
       color: var(--muted);
       margin-bottom: 20px;
     }
@@ -160,44 +213,16 @@
       font-weight: 600;
     }
 
-    /* ── Tank button ───────────────────────────────── */
-    .tank-title {
-      text-align: center;
-      font-size: 0.78rem;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 8px;
-    }
-
-    .tank-button {
-      width: 100%;
-      background: #1f2937;
-      color: white;
-      font-size: 1.1rem;
-      font-weight: 700;
-      padding: 14px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-    }
-
-    .tank-button.warning {
-      background: #ea580c;
-      border-color: #ea580c;
-    }
-
     /* ── Quiet button ──────────────────────────────── */
     .quiet-button {
       width: 100%;
-      margin-top: 12px;
-      background: #1e3a5f;
-      color: #93c5fd;
-      font-size: 1rem;
+      background: var(--panel2);
+      color: var(--text);
+      font-size: 0.9rem;
       font-weight: 700;
-      padding: 13px;
+      padding: 12px;
       border-radius: 12px;
-      border: 1px solid #2d5a8e;
+      border: 1px solid var(--border);
     }
 
     .quiet-button:hover {
@@ -209,25 +234,29 @@
 </head>
 <body>
 <div class="card">
-  <h1>WWM — GvG Timer v5</h1>
-  <div class="time" id="timeDisplay">30:00</div>
+  <div class="top-row">
+    <h1>WWM — GvG Timer</h1>
+    <button class="theme-toggle" id="themeToggle">🌙 Dark</button>
+  </div>
+  <div class="time" id="timeDisplay">34:40</div>
 
   <div class="adjustments">
     <div>
       <label for="minutesInput">Minutes</label>
-      <input id="minutesInput" type="number" min="0" max="999" value="30" />
+      <input id="minutesInput" type="number" min="0" max="999" value="34" />
     </div>
     <div>
       <label for="secondsInput">Seconds</label>
-      <input id="secondsInput" type="number" min="0" max="59" value="0" />
+      <input id="secondsInput" type="number" min="0" max="59" value="40" />
     </div>
   </div>
 
   <div class="buttons">
     <button class="btn-start" id="startBtn">Start</button>
     <button class="btn-pause" id="pauseBtn">Pause</button>
-    <button class="btn-reset" id="resetBtn">Reset</button>
   </div>
+
+  <button class="btn-reset" id="resetBtn">↺ Reset to 34:40</button>
 
   <div class="event-box" id="eventBox">
     <div class="event-label" id="eventLabel">HAVE FUN</div>
@@ -239,9 +268,6 @@
     <span class="next-label" id="nextLabel">—</span>
     <span class="next-time"  id="nextTime">—</span>
   </div>
-
-  <div class="tank-title">Tank Status</div>
-  <button class="tank-button" id="tankBtn">Tank Ready</button>
 
   <button class="quiet-button" id="quietBtn">🔇 Play Quiet Sound</button>
 </div>
@@ -293,8 +319,8 @@
   ];
   // ────────────────────────────────────────────────────────────────────────────
 
-  const DEFAULT_MIN = 30;
-  const DEFAULT_SEC = 0;
+  const DEFAULT_MIN = 34;
+  const DEFAULT_SEC = 40;
 
   const timeDisplay  = document.getElementById('timeDisplay');
   const minutesInput = document.getElementById('minutesInput');
@@ -307,7 +333,23 @@
   const eventSub     = document.getElementById('eventSub');
   const nextLabel    = document.getElementById('nextLabel');
   const nextTime     = document.getElementById('nextTime');
-  const tankBtn      = document.getElementById('tankBtn');
+  const themeToggle  = document.getElementById('themeToggle');
+
+  // ── Theme ────────────────────────────────────────────────────────────────
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    themeToggle.textContent = theme === 'dark' ? '🌙 Dark' : '☀️ Light';
+    localStorage.setItem('gvgTimerTheme', theme);
+  }
+
+  const savedTheme = localStorage.getItem('gvgTimerTheme')
+    || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  applyTheme(savedTheme);
+
+  themeToggle.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme');
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+  });
 
   // ── High-accuracy timekeeping ───────────────────────────────────────────────
   // The countdown is NEVER advanced by counting ticks. Instead we anchor an
@@ -327,10 +369,6 @@
   let pausedRemainMs   = 0;     // ms left at the moment of pause
   let firedSet         = new Set();
   let lastSeenSecond   = Infinity; // for catch-up event scanning
-
-  let tankEndEpoch     = 0;
-  let tankTimerId      = null;
-  let tankRemaining    = 0;
 
   function fmt(s) {
     s = Math.max(0, s);
@@ -492,49 +530,6 @@
     if (!document.hidden && timerId) {
       clearTimeout(timerId);
       renderTick();
-    }
-  });
-
-  // ── Tank countdown (same wall-clock approach) ──────────────────────────────
-
-  function setTankReady() {
-    tankBtn.classList.remove('warning');
-    tankBtn.textContent = 'Tank Ready';
-  }
-
-  function renderTankTick() {
-    const msLeft = tankEndEpoch - Date.now();
-    if (msLeft <= 0) {
-      clearTimeout(tankTimerId);
-      tankTimerId = null;
-      setTankReady();
-      return;
-    }
-    const sec = Math.ceil(msLeft / 1000);
-    tankRemaining = sec;
-    if (sec <= 15) {
-      tankBtn.classList.add('warning');
-      tankBtn.innerHTML = `SAVE VITALITY<br><span style="font-size:0.9rem">${fmt(sec)}</span>`;
-    } else {
-      tankBtn.classList.remove('warning');
-      tankBtn.textContent = fmt(sec);
-    }
-    const msToNextBoundary = msLeft - (sec - 1) * 1000;
-    tankTimerId = setTimeout(renderTankTick, Math.max(20, msToNextBoundary));
-  }
-
-  function startTankCountdown() {
-    clearTimeout(tankTimerId);
-    tankEndEpoch = Date.now() + 100 * 1000;
-    renderTankTick();
-  }
-
-  tankBtn.addEventListener('click', startTankCountdown);
-
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && tankTimerId) {
-      clearTimeout(tankTimerId);
-      renderTankTick();
     }
   });
 
