@@ -63,12 +63,24 @@
       margin-bottom: 4px;
     }
 
-    h1 {
-      font-size: 0.95rem;
+    .brand-tag {
+      display: block;
+      font-size: 0.65rem;
       color: var(--muted);
-      letter-spacing: 0.12em;
+      letter-spacing: 0.25em;
       text-transform: uppercase;
       font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    h1 {
+      font-size: 1.35rem;
+      letter-spacing: -0.02em;
+      font-weight: 800;
+      background: linear-gradient(135deg, #3b82f6, #06b6d4);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
     }
 
     .theme-toggle {
@@ -126,9 +138,6 @@
     }
 
     .buttons {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
       margin-bottom: 20px;
     }
 
@@ -140,14 +149,21 @@
       font-weight: 700;
       cursor: pointer;
       letter-spacing: 0.03em;
-      transition: filter 0.15s ease, transform 0.05s ease;
+      transition: filter 0.15s ease, transform 0.05s ease, background 0.15s ease;
     }
 
     button:active  { transform: translateY(1px); }
     button:hover   { filter: brightness(1.08); }
 
-    .btn-start { background: #2563eb; color: white; }
-    .btn-pause { background: var(--panel2); color: var(--text); border: 1px solid var(--border); }
+    .btn-toggle {
+      width: 100%;
+      background: #2563eb;
+      color: white;
+    }
+
+    .btn-toggle.is-paused {
+      background: #ea580c;
+    }
 
     .btn-reset {
       width: 100%;
@@ -213,29 +229,93 @@
       font-weight: 600;
     }
 
-    /* ── Quiet button ──────────────────────────────── */
-    .quiet-button {
-      width: 100%;
-      background: var(--panel2);
-      color: var(--text);
-      font-size: 0.9rem;
-      font-weight: 700;
-      padding: 12px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
+    /* ── Help button ───────────────────────────────── */
+    .help-row {
+      display: flex;
+      justify-content: center;
     }
 
-    .quiet-button:hover {
-      background: #1d4ed8;
-      color: white;
-      border-color: #1d4ed8;
+    .help-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      padding: 0;
+      background: var(--panel2);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      font-size: 0.95rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
+
+    .help-btn:hover {
+      color: var(--text);
+      border-color: var(--muted);
+    }
+
+    /* ── Help modal ────────────────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 10;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-box {
+      width: 100%;
+      max-width: 380px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 22px 22px 18px;
+      box-shadow: 0 20px 60px var(--shadow);
+    }
+
+    .modal-box h2 {
+      font-size: 1rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+
+    .modal-box p {
+      font-size: 0.88rem;
+      line-height: 1.5;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .modal-box strong {
+      color: var(--text);
+    }
+
+    .modal-close {
+      width: 100%;
+      margin-top: 8px;
+      background: var(--panel2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      font-weight: 600;
+    }
+
   </style>
 </head>
 <body>
 <div class="card">
   <div class="top-row">
-    <h1>WWM — GvG Timer</h1>
+    <div>
+      <span class="brand-tag">WWM</span>
+      <h1>GvG Timer</h1>
+    </div>
     <button class="theme-toggle" id="themeToggle">🌙 Dark</button>
   </div>
   <div class="time" id="timeDisplay">34:40</div>
@@ -252,8 +332,7 @@
   </div>
 
   <div class="buttons">
-    <button class="btn-start" id="startBtn">Start</button>
-    <button class="btn-pause" id="pauseBtn">Pause</button>
+    <button class="btn-toggle" id="toggleBtn">Start</button>
   </div>
 
   <button class="btn-reset" id="resetBtn">↺ Reset to 34:40</button>
@@ -269,7 +348,21 @@
     <span class="next-time"  id="nextTime">—</span>
   </div>
 
-  <button class="quiet-button" id="quietBtn">🔇 Play Quiet Sound</button>
+  <div class="help-row">
+    <button class="help-btn" id="helpBtn" aria-label="How this works">?</button>
+  </div>
+
+</div>
+
+<div class="modal-overlay" id="helpOverlay">
+  <div class="modal-box">
+    <h2>How this works</h2>
+    <p>GvG starts at <strong>35:00</strong> and counts down.</p>
+    <p>Click <strong>Start</strong> the moment you see the in-game timer match <strong>34:40</strong>.</p>
+    <p>If you miss that window, just adjust the Minutes / Seconds fields to match the in-game timer and start from there.</p>
+    <p>Once running, this will call out jungle spawn times as the match goes on.</p>
+    <button class="modal-close" id="helpClose">Got it</button>
+  </div>
 </div>
 
 <script>
@@ -279,7 +372,6 @@
     jungle30:  new Audio('jungle30s.wav'),
     jungleNow: new Audio('jungleNow.wav'),
     boss:      new Audio('BossWarning.wav'),
-    quiet:     new Audio('quiet.wav'),
   };
 
   // ── Event schedule ──────────────────────────────────────────────────────────
@@ -325,8 +417,7 @@
   const timeDisplay  = document.getElementById('timeDisplay');
   const minutesInput = document.getElementById('minutesInput');
   const secondsInput = document.getElementById('secondsInput');
-  const startBtn     = document.getElementById('startBtn');
-  const pauseBtn     = document.getElementById('pauseBtn');
+  const toggleBtn    = document.getElementById('toggleBtn');
   const resetBtn     = document.getElementById('resetBtn');
   const eventBox     = document.getElementById('eventBox');
   const eventLabel   = document.getElementById('eventLabel');
@@ -437,6 +528,8 @@
     eventSub.textContent       = 'Countdown finished';
     nextLabel.textContent      = '—';
     nextTime.textContent       = '—';
+    isPaused = false;
+    setToggleStopped();
   }
 
   // One render pass driven purely by the wall clock.
@@ -476,71 +569,4 @@
     timeDisplay.textContent = fmt(remainingSeconds);
   }
 
-  // ── Controls ──────────────────────────────────────────────────────────────
-
-  startBtn.addEventListener('click', () => {
-    if (timerId) return; // already running
-
-    if (isPaused) {
-      // Resume: re-anchor the deadline to the remaining time.
-      endEpoch = Date.now() + pausedRemainMs;
-      isPaused = false;
-    } else {
-      // Fresh start.
-      readInputs();
-      firedSet.clear();
-      lastSeenSecond = Infinity;
-      showDefaultEvent();
-      endEpoch = Date.now() + remainingSeconds * 1000;
-    }
-
-    updateNextEvent();
-    renderTick();
-  });
-
-  pauseBtn.addEventListener('click', () => {
-    if (!timerId) return;
-    clearTimeout(timerId);
-    timerId = null;
-    pausedRemainMs = Math.max(0, endEpoch - Date.now());
-    isPaused = true;
-  });
-
-  resetBtn.addEventListener('click', () => {
-    clearTimeout(timerId);
-    timerId = null;
-    isPaused = false;
-    pausedRemainMs = 0;
-    lastSeenSecond = Infinity;
-    minutesInput.value = DEFAULT_MIN;
-    secondsInput.value = DEFAULT_SEC;
-    firedSet.clear();
-    readInputs();
-    showDefaultEvent();
-    updateNextEvent();
-  });
-
-  minutesInput.addEventListener('input', () => { if (!timerId && !isPaused) { readInputs(); updateNextEvent(); } });
-  secondsInput.addEventListener('input', () => { if (!timerId && !isPaused) { readInputs(); updateNextEvent(); } });
-
-  // When a throttled/backgrounded tab regains focus, immediately re-sync the
-  // display and fire any callouts we slept through, rather than waiting for the
-  // next scheduled wake-up.
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && timerId) {
-      clearTimeout(timerId);
-      renderTick();
-    }
-  });
-
-  // ── Quiet button ──────────────────────────────────────────────────────────
-  document.getElementById('quietBtn').addEventListener('click', () => {
-    playAudio('quiet');
-  });
-
-  // ── Init ──────────────────────────────────────────────────────────────────
-  readInputs();
-  updateNextEvent();
-</script>
-</body>
-</html>
+  // ── Cont
