@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WWM GvG Timer v6</title>
+  <style>
+    :root[data-theme="dark"] {
+      --bg:           #0f172a;
+      --panel:        #1e293b;
+      --panel2:       #273447;
+      --text:         #f1f5f9;
+      --muted:        #94a3b8;
+      --border:       #334155;
+      --green:        #16a34a;
+      --amber:        #d97706;
+      --red:          #dc2626;
+      --shadow:       rgba(0,0,0,0.45);
+    }
+
+    :root[data-theme="light"] {
+      --bg:           #f1f5f9;
+      --panel:        #ffffff;
+      --panel2:       #f8fafc;
+      --text:         #0f172a;
+      --muted:        #64748b;
+      --border:       #e2e8f0;
+      --green:        #16a34a;
+      --amber:        #d97706;
+      --red:          #dc2626;
+      --shadow:       rgba(15,23,42,0.12);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      color: var(--text);
+      padding: 20px;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .card {
+      position: relative;
+      width: 100%;
+      max-width: 420px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: 0 16px 48px var(--shadow);
+      padding: 28px 24px;
+      transition: background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .brand-tag {
+      display: block;
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    h1 {
+      font-size: 1.35rem;
+      letter-spacing: -0.02em;
+      font-weight: 800;
+      background: linear-gradient(135deg, #3b82f6, #06b6d4);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .theme-toggle {
+      width: auto;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .time {
+      font-size: 4.2rem;
+      font-weight: 700;
+      text-align: center;
+      letter-spacing: 3px;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+      margin: 12px 0 22px;
+    }
+
+    .adjustments {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 600;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 1rem;
+      color: var(--text);
+      outline: none;
+    }
+
+    input[type="number"]:focus {
+      border-color: #3b82f6;
+    }
+
+    .buttons {
+      margin-bottom: 20px;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.03em;
+      transition: filter 0.15s ease, transform 0.05s ease, background 0.15s ease;
+    }
+
+    button:active  { transform: translateY(1px); }
+    button:hover   { filter: brightness(1.08); }
+
+    .btn-toggle {
+      width: 100%;
+      background: #2563eb;
+      color: white;
+    }
+
+    .btn-toggle.is-paused {
+      background: #ea580c;
+    }
+
+    .btn-reset {
+      width: 100%;
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+
+    .btn-reset:hover {
+      color: var(--text);
+      border-color: var(--muted);
+    }
+
+    /* ── Current event banner ──────────────────────── */
+    .event-box {
+      border-radius: 14px;
+      padding: 20px 16px;
+      text-align: center;
+      background: var(--green);
+      transition: background 0.25s ease;
+      margin-bottom: 10px;
+    }
+
+    .event-label {
+      font-size: 1.9rem;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: 0.5px;
+      color: #fff;
+    }
+
+    .event-sub {
+      margin-top: 7px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      opacity: 0.9;
+      color: #fff;
+    }
+
+    /* ── Next event row ────────────────────────────── */
+    .next-row {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    .next-row .next-label {
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .next-row .next-time {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+    }
+
+    /* ── Help button ───────────────────────────────── */
+    .help-row {
+      display: flex;
+      justify-content: center;
+    }
+
+    .help-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      padding: 0;
+      background: var(--panel2);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      font-size: 0.95rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .help-btn:hover {
+      color: var(--text);
+      border-color: var(--muted);
+    }
+
+    /* ── Help modal ────────────────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 10;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-box {
+      width: 100%;
+      max-width: 380px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 22px 22px 18px;
+      box-shadow: 0 20px 60px var(--shadow);
+    }
+
+    .modal-box h2 {
+      font-size: 1rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+
+    .modal-box p {
+      font-size: 0.88rem;
+      line-height: 1.5;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .modal-box strong {
+      color: var(--text);
+    }
+
+    .modal-close {
+      width: 100%;
+      margin-top: 8px;
+      background: var(--panel2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      font-weight: 600;
+    }
+
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="top-row">
+    <div>
+      <span class="brand-tag">WWM</span>
+      <h1>GvG Timer</h1>
+    </div>
+    <button class="theme-toggle" id="themeToggle">🌙 Dark</button>
+  </div>
+  <div class="time" id="timeDisplay">34:40</div>
+
+  <div class="adjustments">
+    <div>
+      <label for="minutesInput">Minutes</label>
+      <input id="minutesInput" type="number" min="0" max="999" value="34" />
+    </div>
+    <div>
+      <label for="secondsInput">Seconds</label>
+      <input id="secondsInput" type="number" min="0" max="59" value="40" />
+    </div>
+  </div>
+
+  <div class="buttons">
+    <button class="btn-toggle" id="toggleBtn">Start</button>
+  </div>
+
+  <button class="btn-reset" id="resetBtn">↺ Reset to 34:40</button>
+
+  <div class="event-box" id="eventBox">
+    <div class="event-label" id="eventLabel">HAVE FUN</div>
+    <div class="event-sub"   id="eventSub">Match started — good luck!</div>
+  </div>
+
+  <div class="next-row">
+    <span>Next</span>
+    <span class="next-label" id="nextLabel">—</span>
+    <span class="next-time"  id="nextTime">—</span>
+  </div>
+
+  <div class="help-row">
+    <button class="help-btn" id="helpBtn" aria-label="How this works">?</button>
+  </div>
+
+</div>
+
+<div class="modal-overlay" id="helpOverlay">
+  <div class="modal-box">
+    <h2>How this works</h2>
+    <p>GvG starts at <strong>35:00</strong> and counts down.</p>
+    <p>Click <strong>Start</strong> the moment you see the in-game timer match <strong>34:40</strong>.</p>
+    <p>If you miss that window, just adjust the Minutes / Seconds fields to match the in-game timer and start from there.</p>
+    <p>Once running, this will call out jungle spawn times as the match goes on.</p>
+    <button class="modal-close" id="helpClose">Got it</button>
+  </div>
+</div>
+
+<script>
+  // ── Audio (place .wav files in the same folder as this HTML file) ──────────
+  const AUDIO = {
+    jungle1:   new Audio('jungle1m.wav'),
+    jungle30:  new Audio('jungle30s.wav'),
+    jungleNow: new Audio('jungleNow.wav'),
+    boss:      new Audio('BossWarning.wav'),
+  };
+
+  // ── Event schedule ──────────────────────────────────────────────────────────
+  // `at` = seconds remaining when the event fires.
+  // Events are grouped into blocks for easy editing.
+  // Audio keys map to the AUDIO object above.
+  //
+  const EVENTS = [
+
+    // ── JUNGLE 25 ────────────────────────────────────────────────────
+    { at: 26*60,      label: 'JUNGLE  1 MIN',  sub: 'Jungle spawns in 1:00',  color: 'amber', audio: 'jungle1'   },
+    { at: 25*60+45,   label: 'BOSS WARNING',   sub: 'Boss spawn incoming',    color: 'red',   audio: 'boss'      },
+    { at: 25*60+30,   label: 'JUNGLE  30 SEC', sub: 'Jungle spawns in 0:30',  color: 'amber', audio: 'jungle30'  },
+    { at: 25*60,      label: 'JUNGLE ACTIVE',  sub: 'Jungle is up now!',      color: 'red',   audio: 'jungleNow' },
+
+    // ── JUNGLE 20 ────────────────────────────────────────────────────
+    { at: 21*60,      label: 'JUNGLE  1 MIN',  sub: 'Jungle spawns in 1:00',  color: 'amber', audio: 'jungle1'   },
+    { at: 20*60+30,   label: 'JUNGLE  30 SEC', sub: 'Jungle spawns in 0:30',  color: 'amber', audio: 'jungle30'  },
+    { at: 20*60,      label: 'JUNGLE ACTIVE',  sub: 'Jungle is up now!',      color: 'red',   audio: 'jungleNow' },
+
+    // ── JUNGLE 15 ────────────────────────────────────────────────────
+    { at: 16*60,      label: 'JUNGLE  1 MIN',  sub: 'Jungle spawns in 1:00',  color: 'amber', audio: 'jungle1'   },
+    { at: 15*60+45,   label: 'BOSS WARNING',   sub: 'Boss spawn incoming',    color: 'red',   audio: 'boss'      },
+    { at: 15*60+30,   label: 'JUNGLE  30 SEC', sub: 'Jungle spawns in 0:30',  color: 'amber', audio: 'jungle30'  },
+    { at: 15*60,      label: 'JUNGLE ACTIVE',  sub: 'Jungle is up now!',      color: 'red',   audio: 'jungleNow' },
+
+    // ── JUNGLE 10 ────────────────────────────────────────────────────
+    { at: 11*60,      label: 'JUNGLE  1 MIN',  sub: 'Jungle spawns in 1:00',  color: 'amber', audio: 'jungle1'   },
+    { at: 10*60+30,   label: 'JUNGLE  30 SEC', sub: 'Jungle spawns in 0:30',  color: 'amber', audio: 'jungle30'  },
+    { at: 10*60,      label: 'JUNGLE ACTIVE',  sub: 'Jungle is up now!',      color: 'red',   audio: 'jungleNow' },
+
+    // ── JUNGLE 5 ─────────────────────────────────────────────────────
+    { at:  6*60,      label: 'JUNGLE  1 MIN',  sub: 'Jungle spawns in 1:00',  color: 'amber', audio: 'jungle1'   },
+    { at:  5*60+30,   label: 'JUNGLE  30 SEC', sub: 'Jungle spawns in 0:30',  color: 'amber', audio: 'jungle30'  },
+    { at:  5*60,      label: 'JUNGLE ACTIVE',  sub: 'Jungle is up now!',      color: 'red',   audio: 'jungleNow' },
+
+  ];
+  // ────────────────────────────────────────────────────────────────────────────
+
+  const DEFAULT_MIN = 34;
+  const DEFAULT_SEC = 40;
+
+  const timeDisplay  = document.getElementById('timeDisplay');
+  const minutesInput = document.getElementById('minutesInput');
+  const secondsInput = document.getElementById('secondsInput');
+  const toggleBtn    = document.getElementById('toggleBtn');
+  const resetBtn     = document.getElementById('resetBtn');
+  const eventBox     = document.getElementById('eventBox');
+  const eventLabel   = document.getElementById('eventLabel');
+  const eventSub     = document.getElementById('eventSub');
+  const nextLabel    = document.getElementById('nextLabel');
+  const nextTime     = document.getElementById('nextTime');
+  const themeToggle  = document.getElementById('themeToggle');
+
+  // ── Theme ────────────────────────────────────────────────────────────────
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    themeToggle.textContent = theme === 'dark' ? '🌙 Dark' : '☀️ Light';
+    localStorage.setItem('gvgTimerTheme', theme);
+  }
+
+  const savedTheme = localStorage.getItem('gvgTimerTheme')
+    || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  applyTheme(savedTheme);
+
+  themeToggle.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme');
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+  });
+
+  // ── High-accuracy timekeeping ───────────────────────────────────────────────
+  // The countdown is NEVER advanced by counting ticks. Instead we anchor an
+  // absolute "deadline" timestamp the moment the timer starts, and every frame
+  // we ask the real clock how much time is actually left. Interval/animation
+  // drift, event-loop lag, and background-tab throttling can never accumulate
+  // error, because we recompute from wall-clock truth on every update.
+  //
+  //   endEpoch  – Date.now()-style ms timestamp at which the countdown hits 0.
+  //   We poll with a self-correcting setTimeout aimed at the next whole-second
+  //   boundary, and we render via the timestamp delta — not a decrement.
+
+  let endEpoch         = 0;     // ms; deadline when remaining === 0
+  let remainingSeconds = DEFAULT_MIN * 60 + DEFAULT_SEC; // last rendered whole second
+  let timerId          = null;  // setTimeout handle for the countdown
+  let isPaused         = false;
+  let pausedRemainMs   = 0;     // ms left at the moment of pause
+  let firedSet         = new Set();
+  let lastSeenSecond   = Infinity; // for catch-up event scanning
+
+  function fmt(s) {
+    s = Math.max(0, s);
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  }
+
+  function playAudio(key) {
+    try {
+      const a = AUDIO[key];
+      a.currentTime = 0;
+      a.play().catch(() => {});
+    } catch (e) {}
+  }
+
+  function showEvent(ev) {
+    const bg = { red: '#dc2626', amber: '#d97706', green: '#16a34a' };
+    eventBox.style.background = bg[ev.color] ?? '#16a34a';
+    eventLabel.textContent = ev.label;
+    eventSub.textContent   = ev.sub;
+  }
+
+  function showDefaultEvent() {
+    eventBox.style.background = '#16a34a';
+    eventLabel.textContent = 'HAVE FUN';
+    eventSub.textContent   = 'Match started — good luck!';
+  }
+
+  function updateNextEvent() {
+    const next = EVENTS
+      .filter((ev, i) => !firedSet.has(i) && ev.at < remainingSeconds)
+      .sort((a, b) => b.at - a.at)[0];
+
+    if (next) {
+      nextLabel.textContent = next.label;
+      nextTime.textContent  = `in ${fmt(remainingSeconds - next.at)}`;
+    } else {
+      nextLabel.textContent = '—';
+      nextTime.textContent  = '—';
+    }
+  }
+
+  // Fire every event whose threshold lies in the window we just crossed.
+  // Using "<= ev.at" + firedSet means a skipped second (throttled tab,
+  // GC pause, the page being asleep) still triggers the alert exactly once,
+  // and never double-fires.
+  function checkEvents(currentSecond) {
+    EVENTS.forEach((ev, i) => {
+      if (!firedSet.has(i) && currentSecond <= ev.at && lastSeenSecond > ev.at) {
+        firedSet.add(i);
+        playAudio(ev.audio);
+        showEvent(ev);
+      }
+    });
+    lastSeenSecond = currentSecond;
+  }
+
+  function finishCountdown() {
+    clearTimeout(timerId);
+    timerId = null;
+    remainingSeconds = 0;
+    timeDisplay.textContent    = '00:00';
+    eventBox.style.background  = '#111827';
+    eventLabel.textContent     = 'MATCH OVER';
+    eventSub.textContent       = 'Countdown finished';
+    nextLabel.textContent      = '—';
+    nextTime.textContent       = '—';
+    isPaused = false;
+    setToggleStopped();
+  }
+
+  // One render pass driven purely by the wall clock.
+  function renderTick() {
+    const msLeft = endEpoch - Date.now();
+
+    if (msLeft <= 0) {
+      // Make sure any events between lastSeenSecond and 0 still fire.
+      checkEvents(0);
+      finishCountdown();
+      return;
+    }
+
+    // ceil so the display shows e.g. "00:01" until the instant it truly hits 0.
+    const sec = Math.ceil(msLeft / 1000);
+    remainingSeconds = sec;
+    timeDisplay.textContent = fmt(sec);
+    checkEvents(sec);
+    updateNextEvent();
+
+    // Self-correcting schedule: aim the next wake-up at the next whole-second
+    // boundary instead of blindly waiting 1000ms. This keeps the digit flip
+    // aligned to real time and prevents slow visual drift.
+    const msToNextBoundary = msLeft - (sec - 1) * 1000;
+    timerId = setTimeout(renderTick, Math.max(20, msToNextBoundary));
+  }
+
+  function readInputs() {
+    let m = parseInt(minutesInput.value, 10);
+    let s = parseInt(secondsInput.value, 10);
+    if (isNaN(m) || m < 0) m = 0;
+    if (isNaN(s) || s < 0) s = 0;
+    if (s > 59) s = 59;
+    minutesInput.value = m;
+    secondsInput.value = s;
+    remainingSeconds = m * 60 + s;
+    timeDisplay.textContent = fmt(remainingSeconds);
+  }
+
+  // ── Controls ──────────────────────────────────────────────────────────────
+
+  function setToggleRunning() {
+    toggleBtn.textContent = 'Pause';
+    toggleBtn.classList.remove('is-paused');
+    toggleBtn.style.background = '#2563eb';
+  }
+
+  function setTogglePaused() {
+    toggleBtn.textContent = 'Paused';
+    toggleBtn.classList.add('is-paused');
+    toggleBtn.style.background = '#ea580c';
+  }
+
+  function setToggleStopped() {
+    toggleBtn.textContent = 'Start';
+    toggleBtn.classList.remove('is-paused');
+    toggleBtn.style.background = '#2563eb';
+  }
+
+  toggleBtn.addEventListener('click', () => {
+    if (timerId) {
+      // Running → pause.
+      clearTimeout(timerId);
+      timerId = null;
+      pausedRemainMs = Math.max(0, endEpoch - Date.now());
+      isPaused = true;
+      setTogglePaused();
+      return;
+    }
+
+    if (isPaused) {
+      // Resume: re-anchor the deadline to the remaining time.
+      endEpoch = Date.now() + pausedRemainMs;
+      isPaused = false;
+    } else {
+      // Fresh start.
+      readInputs();
+      firedSet.clear();
+      lastSeenSecond = Infinity;
+      showDefaultEvent();
+      endEpoch = Date.now() + remainingSeconds * 1000;
+    }
+
+    setToggleRunning();
+    updateNextEvent();
+    renderTick();
+  });
+
+  resetBtn.addEventListener('click', () => {
+    clearTimeout(timerId);
+    timerId = null;
+    isPaused = false;
+    pausedRemainMs = 0;
+    lastSeenSecond = Infinity;
+    minutesInput.value = DEFAULT_MIN;
+    secondsInput.value = DEFAULT_SEC;
+    firedSet.clear();
+    readInputs();
+    showDefaultEvent();
+    updateNextEvent();
+    setToggleStopped();
+  });
+
+  minutesInput.addEventListener('input', () => { if (!timerId && !isPaused) { readInputs(); updateNextEvent(); } });
+  secondsInput.addEventListener('input', () => { if (!timerId && !isPaused) { readInputs(); updateNextEvent(); } });
+
+  // When a throttled/backgrounded tab regains focus, immediately re-sync the
+  // display and fire any callouts we slept through, rather than waiting for the
+  // next scheduled wake-up.
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && timerId) {
+      clearTimeout(timerId);
+      renderTick();
+    }
+  });
+
+  // ── Help modal ───────────────────────────────────────────────────────────
+  const helpBtn     = document.getElementById('helpBtn');
+  const helpOverlay = document.getElementById('helpOverlay');
+  const helpClose   = document.getElementById('helpClose');
+
+  helpBtn.addEventListener('click', () => helpOverlay.classList.add('open'));
+  helpClose.addEventListener('click', () => helpOverlay.classList.remove('open'));
+  helpOverlay.addEventListener('click', (e) => {
+    if (e.target === helpOverlay) helpOverlay.classList.remove('open');
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') helpOverlay.classList.remove('open');
+  });
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  readInputs();
+  updateNextEvent();
+</script>
+</body>
+</html>
