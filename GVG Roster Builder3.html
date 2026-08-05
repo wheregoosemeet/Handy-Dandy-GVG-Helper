@@ -81,6 +81,10 @@
   .meta b { color: var(--text); }
   .spacer { flex: 1 1 auto; }
 
+  .games-toggle { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); }
+  .games-toggle button { padding: 6px 13px; font-size: 0.82rem; }
+  .games-toggle button.active { background: var(--accent); border-color: var(--accent2); color: #fff; }
+
   .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
   button {
     border: 1px solid var(--border); background: var(--panel2); color: var(--text);
@@ -186,13 +190,11 @@
   .share-row { display: flex; align-items: stretch; gap: 0; flex: 1 1 auto; min-width: 0; }
   .vdiv { flex: 0 0 1px; background: var(--border); margin: 1px 6px; }
   .chip.half {
-    flex: 1 1 0; min-width: 0; gap: 4px; padding: 2px 5px;
-    background: transparent; border: none; box-shadow: none; cursor: grab;
+    flex: 1 1 0; min-width: 0; gap: 4px; padding: 3px 7px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; box-shadow: none; cursor: grab;
   }
-  .chip.half:hover { background: var(--panel2); border-radius: 6px; }
+  .chip.half:hover { border-color: var(--accent2); }
   .chip.half .name { font-weight: 700; font-size: 0.76rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-  .mini-rt { flex: 0 0 14px; width: 14px; height: 14px; border-radius: 4px; display: grid; place-items: center; font-size: 0.54rem; font-weight: 800; color: #0b1220; }
-  .mini-rt.tank { background: var(--tank); } .mini-rt.dps { background: var(--dps); } .mini-rt.heal { background: var(--heal); }
   .gbadge {
     margin-left: auto; flex: 0 0 auto; cursor: pointer; user-select: none;
     font-size: 0.62rem; font-weight: 800; letter-spacing: 0.06em;
@@ -398,6 +400,11 @@
     <button id="resetBtn" class="danger">↺ Re-run core placement</button>
     <button id="clearBtn" class="danger">🗑 Clear all</button>
     <button id="helpBtn" title="How it works">?</button>
+  </div>
+  <div class="games-toggle" id="gamesToggle">
+    <span>🎮 Games</span>
+    <button type="button" data-games="4">4</button>
+    <button type="button" data-games="6">6</button>
   </div>
 </header>
 
@@ -621,6 +628,7 @@ let benches     = [];
 let assignments = {};
 let coreConfig  = [];
 let eventInfo   = {};
+let personHybrids = {};   // pid -> last-used hybrid markers, kept even after un-placing
 
 const LS_ROSTER = "gvgRosterState";
 
@@ -656,12 +664,14 @@ function redistribute(occ){
   const g = allGames(); let idx = 0;
   for (let i=0;i<n;i++){ const size = base + (i<rem?1:0); occ[i].games = g.slice(idx, idx+size); idx += size; }
 }
-function addOcc(key, pid){
+function addOcc(key, pid, hybrids){
   const occ = assignments[key] || (assignments[key]=[]);
   if (occ.some(o=>o.id===pid)) return;                 // already here
   if (occ.length >= 2){ flashFull(key); return; }      // slots only ever split 2 ways
   removeFromAllSlots(pid, key);                        // a person can only sit in one slot
-  occ.push({ id:pid, games:[], hybrids:[defaultHybridForPid(pid)] });
+  const h = hybrids || rememberedHybridsForPid(pid);
+  occ.push({ id:pid, games:[], hybrids: h });
+  rememberHybrids(pid, h);
   redistribute(occ);
 }
 function removeFromAllSlots(pid, exceptKey){
@@ -723,6 +733,12 @@ function gamesShort(games){ return "g"+[...games].sort((a,b)=>a-b).join(","); }
 // person's main class (Tank/Dps/Healer); an empty slot shows nothing.
 function defaultHybridForRole(role){ return HYBRID_DEFAULT[ROLE_BUCKET[role]] || "⚔️"; }
 function defaultHybridForPid(pid){ const p = people[pid]; return p ? defaultHybridForRole(p.role) : "⚔️"; }
+// What a person should get when (re)placed: whatever they last had, or the role default.
+function rememberedHybridsForPid(pid){
+  const saved = personHybrids[pid];
+  return (saved && saved.length) ? [...saved] : [defaultHybridForPid(pid)];
+}
+function rememberHybrids(pid, hybrids){ personHybrids[pid] = [...(hybrids||[])]; }
 function tokenHTML(em, attrs, tiny){
   return `<span class="htoken${tiny?' tiny':''}" ${attrs} data-tip="${escapeHtml(HYBRID_NAME[em]||"")}" title="${escapeHtml(HYBRID_NAME[em]||"")} — click to remove">${em}</span>`;
 }
@@ -744,11 +760,13 @@ function addHybridToOcc(key, pid, emoji){
   if (!Array.isArray(o.hybrids)) o.hybrids = [];
   if (o.hybrids.length >= HYBRID_MAX){ flashFull(key); return; }
   o.hybrids.push(emoji);
+  rememberHybrids(pid, o.hybrids);
   render(); saveRoster();
 }
 function removeHybridFromOcc(key, pid, idx){
   const o = occById(key, pid); if (!o || !o.hybrids) return;
   o.hybrids.splice(idx,1);
+  rememberHybrids(pid, o.hybrids);
   render(); saveRoster();
 }
 
@@ -757,7 +775,7 @@ function loadData(data){
   if (!data || !Array.isArray(data.signUps)) {
     alert("That file doesn't look like a sign-up JSON (missing \"signUps\" array)."); return false;
   }
-  people = {}; absences = []; benches = []; assignments = {}; eventInfo = {};
+  people = {}; absences = []; benches = []; assignments = {}; eventInfo = {}; personHybrids = {};
   const gm = String(data.description||"").match(/(\d+)\s*Game/i);
   NUM_GAMES = gm ? Math.max(1, Math.min(8, +gm[1])) : 4;
   eventInfo = {
@@ -816,7 +834,6 @@ function halfCardHTML(key, o){
   const gms = o.games.length ? o.games.join(" ") : "–";
   const marks = occHybridsHTML(key, o, true);
   return `<div class="chip half" draggable="true" data-id="${p.id}" data-ctx="slot:${key}" title="${escapeHtml(p.name)} — ${gamesLabel(o.games)}">
-    <span class="mini-rt ${ROLE_BUCKET[p.role]}">${roleLetter(p.role)}</span>
     <span class="name">${escapeHtml(p.name)}</span>${badge}
     <span class="gstack">
       <span class="hmarks">${marks}</span>
@@ -837,8 +854,30 @@ function render(){
   renderSignups();
   renderBench();
   renderAbsence();
+  updateGamesToggleUI();
   wireDnD();
 }
+
+/* ── Games-count toggle (4 vs 6) ───────────────────────────────────────── */
+function updateGamesToggleUI(){
+  document.querySelectorAll('#gamesToggle button').forEach(b => {
+    b.classList.toggle('active', +b.dataset.games === NUM_GAMES);
+  });
+}
+function setNumGames(n){
+  n = Math.max(1, Math.min(8, n));
+  if (n === NUM_GAMES){ updateGamesToggleUI(); return; }
+  NUM_GAMES = n;
+  eventInfo.games = n;
+  // Re-split every occupied slot evenly across the new game count
+  // (custom split boundaries picked via the games badge are reset).
+  for (const occ of Object.values(assignments)) redistribute(occ);
+  render();
+  saveRoster();
+}
+document.querySelectorAll('#gamesToggle button').forEach(b => {
+  b.addEventListener('click', () => setNumGames(+b.dataset.games));
+});
 
 function renderSides(){
   const sides = document.getElementById("sides");
@@ -1000,8 +1039,13 @@ function wireDnD(){
       if (!dragId) return;
       const targetKey = slot.dataset.slot;
       if (dragFromKey === targetKey) return;     // dropped back on its own slot -> no-op
-      if (dragFromKey) removeOcc(dragFromKey, dragId);
-      addOcc(targetKey, dragId);                  // 2nd+ person splits the slot
+      let carriedHybrids = null;
+      if (dragFromKey){
+        const o = occById(dragFromKey, dragId);
+        if (o) carriedHybrids = o.hybrids;         // keep this person's hybrid markers across the move
+        removeOcc(dragFromKey, dragId);
+      }
+      addOcc(targetKey, dragId, carriedHybrids);  // 2nd+ person splits the slot
       render(); saveRoster();
     });
   });
@@ -1079,6 +1123,7 @@ function loadSave(st){
   benches     = st.benches     || [];
   assignments = st.assignments || {};
   eventInfo   = st.eventInfo   || {};
+  personHybrids = st.personHybrids || {};
   // Core team is now hard-coded in CORE_TEAM (top of this script), so any
   // coreConfig saved inside an old save file is intentionally ignored.
   if (eventInfo.games) NUM_GAMES = eventInfo.games;
@@ -1103,6 +1148,7 @@ document.getElementById("saveBtn").addEventListener("click", () => {
     assignments,
     eventInfo,
     coreConfig,
+    personHybrids,
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url  = URL.createObjectURL(blob);
@@ -1121,7 +1167,7 @@ document.getElementById("saveBtn").addEventListener("click", () => {
 
 document.getElementById("clearBtn").addEventListener("click", () => {
   if (!confirm("Clear everything and start fresh? This removes all sign-ups and placements.")) return;
-  people = {}; absences = []; benches = []; assignments = {}; eventInfo = {};
+  people = {}; absences = []; benches = []; assignments = {}; eventInfo = {}; personHybrids = {};
   NUM_GAMES = 4;
   try { localStorage.removeItem(LS_ROSTER); } catch(e){}
   dz.classList.remove("loaded");
@@ -1175,7 +1221,7 @@ function copyText(text, btn){
 
 
 /* ── Persistence ───────────────────────────────────────────────────────── */
-function saveRoster(){ try{ localStorage.setItem(LS_ROSTER, JSON.stringify({people,absences,benches,assignments,eventInfo})); }catch(e){} }
+function saveRoster(){ try{ localStorage.setItem(LS_ROSTER, JSON.stringify({people,absences,benches,assignments,eventInfo,personHybrids})); }catch(e){} }
 
 function restoreRoster(){
   try {
@@ -1183,7 +1229,7 @@ function restoreRoster(){
     if (!raw) return;
     const st = JSON.parse(raw);
     if (st && st.people && Object.keys(st.people).length){
-      people=st.people; absences=st.absences||[]; benches=st.benches||[]; assignments=st.assignments||{}; eventInfo=st.eventInfo||{};
+      people=st.people; absences=st.absences||[]; benches=st.benches||[]; assignments=st.assignments||{}; eventInfo=st.eventInfo||{}; personHybrids=st.personHybrids||{};
       if (eventInfo.games) NUM_GAMES = eventInfo.games;
       normalizeAssignments();
       render();
@@ -1320,6 +1366,7 @@ window.addEventListener("scroll", hideFloatTip, true);
 coreConfig = DEFAULT_CORE.map(c=>({...c}));   // core team from the hard-coded CORE_TEAM list
 wirePalette();      // hybrid-role palette drag sources (static)
 renderSides();      // draw the empty board even before a file is dropped
+updateGamesToggleUI();
 restoreRoster();
 </script>
 </body>
