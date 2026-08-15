@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cooldown Board — GvG</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+
+  :root{
+    --ink:#0A0D12;
+    --ink2:#10151D;
+    --tile:#151C26;
+    --line:#232D3C;
+    --text:#E9EEF6;
+    --muted:#7F8DA1;
+
+    --jade:#42D391;      /* ready */
+    --steel:#7FA0D8;     /* running */
+    --brass:#FFD86E;     /* 30s */
+    --cinnabar:#FF5B48;  /* 10s */
+
+    --ui:'Space Grotesk', system-ui, -apple-system, sans-serif;
+    --num:'DM Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+    --r:14px;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(1100px 600px at 50% -10%, #16202D 0%, transparent 60%),
+      var(--ink);
+    color:var(--text);
+    font-family:var(--ui);
+    padding:26px 18px 40px;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .shell{max-width:960px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+
+  /* ── HEADER ── */
+  .bar{
+    display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+    padding:14px 16px;
+    background:linear-gradient(180deg, rgba(255,255,255,.03), transparent), var(--ink2);
+    border:1px solid var(--line);
+    border-radius:var(--r);
+  }
+  .mark{display:flex;align-items:center;gap:11px;margin-right:auto}
+  .mark svg{width:26px;height:26px;flex:none}
+  .eyebrow{
+    font-size:.6rem;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--muted);font-weight:600;
+  }
+  .mark h1{font-size:1.05rem;font-weight:700;letter-spacing:-.01em;line-height:1.15}
+
+  .ctl{display:flex;align-items:center;gap:8px}
+  .ctl > .lab{
+    font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--muted);font-weight:600;
+  }
+
+  input[type=text]{
+    background:#0C111A;border:1px solid var(--line);border-radius:9px;
+    color:var(--text);font-family:var(--num);font-size:.95rem;
+    padding:8px 10px;outline:none;transition:border-color .15s, box-shadow .15s;
+  }
+  input[type=text]:focus{border-color:#3B6EA8;box-shadow:0 0 0 3px rgba(59,110,168,.18)}
+  input::placeholder{color:#4C5868}
+  /* ── stepper ── */
+  .stepper{
+    display:flex;align-items:stretch;
+    background:#0C111A;border:1px solid var(--line);border-radius:10px;
+    overflow:hidden;transition:border-color .15s, box-shadow .15s;
+  }
+  .stepper:focus-within{border-color:#3B6EA8;box-shadow:0 0 0 3px rgba(59,110,168,.18)}
+  .stepper input{
+    width:82px;border:none;background:transparent;border-radius:0;
+    font-size:1.15rem;padding:8px 4px 8px 12px;text-align:center;
+  }
+  .stepper input:focus{box-shadow:none}
+  .arrows{display:flex;flex-direction:column;border-left:1px solid var(--line)}
+  .arrows button{
+    flex:1;width:30px;background:transparent;border:none;color:var(--muted);
+    font-size:.5rem;line-height:1;cursor:pointer;transition:.12s;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .arrows button:hover{background:rgba(255,255,255,.06);color:var(--jade)}
+  .arrows button:active{background:rgba(66,211,145,.16)}
+  .arrows button:first-child{border-bottom:1px solid var(--line)}
+
+  .ghost{
+    background:transparent;border:1px solid var(--line);color:var(--muted);
+    font-family:var(--ui);font-weight:600;font-size:.72rem;letter-spacing:.09em;
+    text-transform:uppercase;padding:9px 12px;border-radius:9px;cursor:pointer;
+    transition:.15s;
+  }
+  .ghost:hover{color:var(--text);border-color:#3A475A;background:rgba(255,255,255,.03)}
+  .ghost[aria-pressed="true"]{color:var(--jade);border-color:rgba(66,211,145,.45)}
+
+  /* ── GRID ── */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,200px);
+    justify-content:center;
+    gap:14px;
+  }
+
+  .tile{
+    --c:var(--steel);
+    position:relative;overflow:hidden;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+    min-height:172px;padding:20px 12px 18px;
+    background:var(--tile);
+    border:1px solid var(--line);
+    border-radius:var(--r);
+    color:var(--c);
+    font-family:var(--ui);cursor:pointer;
+    transition:border-color .2s, background .2s, transform .06s;
+  }
+  .tile:hover{transform:translateY(-1px)}
+  .tile:active{transform:translateY(1px)}
+  .tile:focus-visible{outline:2px solid var(--steel);outline-offset:2px}
+
+  .fill{
+    position:absolute;left:0;right:0;bottom:0;height:0;
+    background:currentColor;opacity:.13;
+    transition:height .12s linear;pointer-events:none;
+  }
+  .edge{
+    position:absolute;left:0;right:0;bottom:0;height:2px;
+    background:currentColor;opacity:.55;pointer-events:none;
+  }
+
+  .key{
+    position:absolute;top:9px;left:11px;
+    font-family:var(--num);font-size:.62rem;color:var(--muted);opacity:.65;
+  }
+  .name{
+    font-size:1.12rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+    color:#fff;position:relative;line-height:1.2;
+    max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    text-shadow:0 1px 6px rgba(0,0,0,.5);
+  }
+  .clock{
+    font-family:var(--num);font-weight:500;font-size:2.6rem;line-height:1.05;
+    letter-spacing:-.02em;position:relative;
+  }
+  .status{
+    font-size:.56rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;
+    opacity:.7;position:relative;
+  }
+
+  .tile.is-ready{--c:var(--jade);background:linear-gradient(180deg, rgba(66,211,145,.10), rgba(66,211,145,.04)), var(--tile);border-color:rgba(66,211,145,.42)}
+  .tile.is-ready .clock{font-size:1.75rem;letter-spacing:.08em}
+  .tile.is-run  {--c:var(--steel);border-color:rgba(127,160,216,.34)}
+  .tile.is-warn {--c:var(--brass);border-color:rgba(255,216,110,.55);background:linear-gradient(180deg, rgba(255,216,110,.07), transparent), var(--tile)}
+  .tile.is-crit {--c:var(--cinnabar);border-color:rgba(255,91,72,.7);background:linear-gradient(180deg, rgba(255,91,72,.10), transparent), var(--tile);animation:beat .85s ease-in-out infinite}
+
+  @keyframes beat{
+    0%,100%{box-shadow:0 0 0 0 rgba(255,91,72,.42)}
+    60%{box-shadow:0 0 0 8px rgba(255,91,72,0)}
+  }
+
+  .tile.flash{animation:pop .9s ease-out 1}
+  @keyframes pop{
+    0%{box-shadow:0 0 0 0 rgba(66,211,145,.65);border-color:var(--jade)}
+    100%{box-shadow:0 0 0 14px rgba(66,211,145,0)}
+  }
+
+  /* ── ROSTER ── */
+  .roster{
+    background:var(--ink2);border:1px solid var(--line);border-radius:var(--r);
+    padding:16px;display:flex;flex-direction:column;gap:14px;
+  }
+  .roster[hidden]{display:none}
+  .roster h2{
+    font-size:.6rem;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--muted);font-weight:600;
+  }
+  .add-row{display:flex;gap:8px}
+  .add-row input{flex:1}
+  .add-row button{
+    background:var(--jade);color:#06120C;border:none;border-radius:9px;
+    font-family:var(--ui);font-weight:700;font-size:.78rem;letter-spacing:.08em;
+    text-transform:uppercase;padding:0 18px;cursor:pointer;transition:.15s;
+  }
+  .add-row button:hover{filter:brightness(1.08)}
+
+  .list{display:flex;flex-direction:column;gap:6px}
+  .row{
+    display:flex;align-items:center;gap:10px;
+    background:#0C111A;border:1px solid var(--line);border-radius:10px;
+    padding:8px 8px 8px 12px;
+  }
+  .row .idx{font-family:var(--num);font-size:.68rem;color:var(--muted);width:16px}
+  .row .who{flex:1;font-size:.86rem;font-weight:600;letter-spacing:.02em;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row input[type=text]{width:70px;text-align:center;font-size:.82rem;padding:6px 8px}
+  .row .kill{
+    background:transparent;border:1px solid var(--line);color:var(--muted);
+    width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:1rem;line-height:1;
+    transition:.15s;flex:none;
+  }
+  .row .kill:hover{color:var(--cinnabar);border-color:rgba(255,91,72,.5)}
+
+  .empty{
+    border:1px dashed var(--line);border-radius:var(--r);
+    padding:34px 20px;text-align:center;color:var(--muted);font-size:.88rem;
+  }
+  .empty strong{display:block;color:var(--text);font-size:1rem;margin-bottom:5px;font-weight:600}
+
+  .hint{
+    font-size:.72rem;color:var(--muted);text-align:center;letter-spacing:.03em;
+  }
+  .hint kbd{
+    font-family:var(--num);font-size:.68rem;background:#0C111A;
+    border:1px solid var(--line);border-radius:5px;padding:2px 5px;color:#A7B4C6;
+  }
+
+  @media (max-width:520px){
+    .grid{grid-template-columns:repeat(2,1fr);justify-content:stretch}
+    .bar{gap:10px}
+    .mark{margin-right:0;width:100%}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none !important;transition:none !important}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- HEADER -->
+  <div class="bar">
+    <div class="mark">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 21.5 3.2 9.6 5.6 3.2 12 6l6.4-2.8 2.4 6.4z" stroke="#42D391" stroke-width="1.3" stroke-linejoin="round"/>
+        <path d="M12 6v15.5M7.4 9.6 12 21.5M16.6 9.6 12 21.5M3.2 9.6h17.6" stroke="#42D391" stroke-width="1.3" opacity=".45"/>
+      </svg>
+      <div>
+        <div class="eyebrow">GvG field console</div>
+        <h1>Cooldown Board</h1>
+      </div>
+    </div>
+
+    <div class="ctl">
+      <span class="lab">Cooldown</span>
+      <div class="stepper">
+        <input id="defaultCd" type="text" value="2:00" spellcheck="false" aria-label="Default cooldown" />
+        <div class="arrows">
+          <button id="cdUp" aria-label="Increase by 5 seconds">▲</button>
+          <button id="cdDown" aria-label="Decrease by 5 seconds">▼</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ctl">
+      <button class="ghost" id="soundBtn" aria-pressed="true">Sound</button>
+      <button class="ghost" id="rosterBtn">Roster</button>
+      <button class="ghost" id="resetBtn">Clear all</button>
+    </div>
+  </div>
+
+  <!-- GRID -->
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" hidden>
+    <strong>No one on the board</strong>
+    Add names below and they stay put for this session.
+  </div>
+
+  <!-- ROSTER -->
+  <div class="roster" id="roster">
+    <h2>Roster</h2>
+    <div class="add-row">
+      <input id="nameInput" type="text" placeholder="Name — or paste several, separated by commas" spellcheck="false" />
+      <button id="addBtn">Add</button>
+    </div>
+    <div class="list" id="list"></div>
+    <div class="hint">Leave a cooldown blank to follow the default. Set your own for tanks, ults, anything.</div>
+  </div>
+
+  <div class="hint">
+    Click a tile to start it · click again to clear · <kbd>1</kbd>–<kbd>9</kbd> for the first nine · <kbd>R</kbd> clears all
+  </div>
+
+</div>
+
+<script>
+/* ─────────── state ─────────── */
+const KEY = 'gvg.cooldown.v2';
+let defaultCd = 120;          // seconds
+let sound = true;
+let roster = [];              // {id, name, cd|null, endsAt|null, total}
+let uid = 1;
+
+const $ = id => document.getElementById(id);
+const grid = $('grid'), list = $('list'), empty = $('empty'), roster$ = $('roster');
+
+/* ─────────── time helpers ─────────── */
+function parseDur(str){
+  if(str == null) return null;
+  const s = String(str).trim();
+  if(!s) return null;
+  let secs;
+  if(s.includes(':')){
+    const [m, sec] = s.split(':');
+    secs = (parseInt(m,10)||0) * 60 + (parseInt(sec,10)||0);
+  } else {
+    secs = parseInt(s,10);
+  }
+  if(isNaN(secs) || secs < 1) return null;
+  return Math.min(secs, 3600);
+}
+const fmtDur = s => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+const cdOf   = p => p.cd || defaultCd;
+
+/* ─────────── session memory ─────────── */
+function save(){
+  try{
+    sessionStorage.setItem(KEY, JSON.stringify({
+      defaultCd, sound,
+      roster: roster.map(p => ({name:p.name, cd:p.cd}))
+    }));
+  }catch(e){ /* memory-only fallback — fine */ }
+}
+function load(){
+  try{
+    const raw = sessionStorage.getItem(KEY);
+    if(!raw) return false;
+    const d = JSON.parse(raw);
+    defaultCd = d.defaultCd || 120;
+    sound = d.sound !== false;
+    roster = (d.roster || []).map(p => ({id:uid++, name:p.name, cd:p.cd||null, endsAt:null, total:0, warned15:false}));
+    return roster.length > 0;
+  }catch(e){ return false; }
+}
+
+/* ─────────── roster ops ─────────── */
+function sortRoster(){
+  roster.sort((a, b) => a.name.localeCompare(b.name, undefined, {sensitivity:'base', numeric:true}));
+}
+function addNames(str){
+  const names = str.split(/[,\n]/).map(s=>s.trim()).filter(Boolean);
+  names.forEach(name => roster.push({id:uid++, name:name.slice(0,18), cd:null, endsAt:null, total:0, warned15:false}));
+  if(names.length){ sortRoster(); buildGrid(); buildList(); save(); }
+}function removePerson(id){
+  roster = roster.filter(p => p.id !== id);
+  buildGrid(); buildList(); save();
+}
+
+/* ─────────── tiles ─────────── */
+function buildGrid(){
+  grid.innerHTML = '';
+  empty.hidden = roster.length > 0;
+  roster.forEach((p, i) => {
+    const b = document.createElement('button');
+    b.className = 'tile is-ready';
+    b.id = 't' + p.id;
+    b.innerHTML = `
+      <span class="fill"></span>
+      <span class="edge"></span>
+      ${i < 9 ? `<span class="key">${i+1}</span>` : ''}
+      <span class="name">${escapeHtml(p.name)}</span>
+      <span class="clock">Ready</span>
+      <span class="status">${fmtDur(cdOf(p))} cd</span>`;
+    b.addEventListener('click', () => toggle(p.id));
+    grid.appendChild(b);
+  });
+  paint();
+}
+const escapeHtml = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function toggle(id){
+  const p = roster.find(x => x.id === id);
+  if(!p) return;
+  if(p.endsAt){ p.endsAt = null; }              // running → clear
+  else { p.total = cdOf(p); p.endsAt = Date.now() + p.total * 1000; }
+  p.warned15 = false;
+  paint();
+}
+
+function paint(){
+  const now = Date.now();
+  roster.forEach(p => {
+    const el = $('t' + p.id);
+    if(!el) return;
+    const clock  = el.querySelector('.clock');
+    const status = el.querySelector('.status');
+    const fill   = el.querySelector('.fill');
+
+    if(!p.endsAt){
+      el.className = 'tile is-ready' + (el.classList.contains('flash') ? ' flash' : '');
+      clock.textContent  = 'Ready';
+      status.textContent = fmtDur(cdOf(p)) + ' cd';
+      fill.style.height  = '0%';
+      return;
+    }
+
+    const rem = Math.max(0, Math.ceil((p.endsAt - now) / 1000));
+    let state = 'is-run', label = 'cooling';
+    if(rem <= 10){ state = 'is-crit'; label = 'almost up'; }
+    else if(rem <= 30){ state = 'is-warn'; label = '30s window'; }
+
+    el.className = 'tile ' + state;
+    clock.textContent  = rem < 60 ? rem : fmtDur(rem);
+    status.textContent = label;
+    fill.style.height  = (rem / p.total * 100) + '%';
+  });
+}
+
+function tick(){
+  const now = Date.now();
+  let ended = false;
+  roster.forEach(p => {
+    if(!p.endsAt) return;
+    const remMs = p.endsAt - now;
+
+    if(!p.warned15 && remMs <= 15000 && remMs > 0){
+      p.warned15 = true;
+      beepBeepBeepBeep();
+    }
+
+    if(remMs <= 0){
+      p.endsAt = null;
+      ended = true;
+      const el = $('t' + p.id);
+      if(el){ el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 950); }
+    }
+  });
+  if(ended) beep();
+  paint();
+}
+
+/* ─────────── roster list ─────────── */
+function buildList(){
+  list.innerHTML = '';
+  roster.forEach((p, i) => {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = `
+      <span class="idx">${i < 9 ? i+1 : '·'}</span>
+      <span class="who">${escapeHtml(p.name)}</span>
+      <input type="text" value="${p.cd ? fmtDur(p.cd) : ''}" placeholder="${fmtDur(defaultCd)}" aria-label="Cooldown for ${escapeHtml(p.name)}" />
+      <button class="kill" title="Remove ${escapeHtml(p.name)}">&times;</button>`;
+    row.querySelector('input').addEventListener('change', e => {
+      p.cd = parseDur(e.target.value);
+      e.target.value = p.cd ? fmtDur(p.cd) : '';
+      paint(); save();
+    });
+    row.querySelector('.kill').addEventListener('click', () => removePerson(p.id));
+    list.appendChild(row);
+  });
+}
+
+/* ─────────── sound ─────────── */
+let ac = null;
+function tone(freq, startOffset, dur, vol){
+  const t = ac.currentTime + startOffset;
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = 'sine'; o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(ac.destination);
+  o.start(t); o.stop(t + dur + 0.02);
+}
+function ensureAc(){
+  ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+}
+function beep(){
+  if(!sound) return;
+  try{
+    ensureAc();
+    [880, 1320].forEach((f, i) => tone(f, i*0.09, 0.16, 0.14));
+  }catch(e){}
+}
+// 15s warning — "beep beep, beep beep"
+function beepBeepBeepBeep(){
+  if(!sound) return;
+  try{
+    ensureAc();
+    const f = 1046.5;           // C6 — cuts through
+    const pairGap = 0.14;       // beep-beep spacing within a pair
+    const groupGap = 0.34;      // gap before the second pair
+    [0, pairGap, groupGap, groupGap + pairGap].forEach(t => tone(f, t, 0.11, 0.16));
+  }catch(e){}
+}
+
+/* ─────────── controls ─────────── */
+$('addBtn').addEventListener('click', () => {
+  addNames($('nameInput').value); $('nameInput').value = ''; $('nameInput').focus();
+});
+$('nameInput').addEventListener('keydown', e => {
+  if(e.key === 'Enter'){ addNames(e.target.value); e.target.value = ''; }
+});
+
+$('defaultCd').addEventListener('change', e => {
+  defaultCd = parseDur(e.target.value) || 120;
+  e.target.value = fmtDur(defaultCd);
+  buildList(); paint(); save();
+});
+const STEP = 5;
+function nudge(dir){
+  defaultCd = Math.min(3600, Math.max(5, defaultCd + dir * STEP));
+  $('defaultCd').value = fmtDur(defaultCd);
+  buildList(); paint(); save();
+}
+function holdable(btn, dir){
+  let t1, t2;
+  const stop = () => { clearTimeout(t1); clearInterval(t2); };
+  btn.addEventListener('pointerdown', e => {
+    e.preventDefault(); nudge(dir);
+    t1 = setTimeout(() => { t2 = setInterval(() => nudge(dir), 110); }, 420);
+  });
+  ['pointerup','pointerleave','pointercancel'].forEach(ev => btn.addEventListener(ev, stop));
+}
+holdable($('cdUp'), 1);
+holdable($('cdDown'), -1);
+
+$('defaultCd').addEventListener('keydown', e => {
+  if(e.key === 'ArrowUp'){ e.preventDefault(); nudge(1); }
+  if(e.key === 'ArrowDown'){ e.preventDefault(); nudge(-1); }
+});
+
+$('soundBtn').addEventListener('click', e => {
+  sound = !sound;
+  e.currentTarget.setAttribute('aria-pressed', sound);
+  if(sound) beep();
+  save();
+});
+$('rosterBtn').addEventListener('click', () => { roster$.hidden = !roster$.hidden; });
+$('resetBtn').addEventListener('click', clearAll);
+
+function clearAll(){ roster.forEach(p => p.endsAt = null); paint(); }
+
+document.addEventListener('keydown', e => {
+  if(e.target.matches('input, textarea')) return;
+  if(e.key >= '1' && e.key <= '9'){
+    const p = roster[+e.key - 1];
+    if(p) toggle(p.id);
+  }
+  if(e.key.toLowerCase() === 'r') clearAll();
+});
+
+/* ─────────── init ─────────── */
+const restored = load();
+if(!restored) roster = ['Group 1','Group 2','Group 3']
+  .map(name => ({id:uid++, name, cd:null, endsAt:null, total:0, warned15:false}));
+sortRoster();
+
+$('defaultCd').value = fmtDur(defaultCd);
+$('soundBtn').setAttribute('aria-pressed', sound);
+roster$.hidden = roster.length > 0;
+buildGrid();
+buildList();
+setInterval(tick, 100);
+</script>
+</body>
+</html>
