@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WWM GvG Timer v8</title>
+  <title>WWM GvG Timer v6</title>
   <style>
     :root[data-theme="dark"] {
       --bg:           #0f172a;
@@ -400,8 +400,8 @@
   const AUDIO = {
     jungle1:   new Audio('jungle1m.wav'),
     jungle30:  new Audio('jungle30s.wav'),
-    jungle15:  new Audio('jungle15s.wav'),
     jungleNow: new Audio('jungleNow.wav'),
+    boss:      new Audio('BossWarning.wav'),
   };
 
   // ── Event schedule ──────────────────────────────────────────────────────────
@@ -413,32 +413,29 @@
 
     // ── JUNGLE 25 ────────────────────────────────────────────────────
     { at: 26*60,      label: 'JUNGLE  1 MIN',  sub: 'Jungle spawns in 1:00',  color: 'amber', audio: 'jungle1'   },
+    { at: 25*60+45,   label: 'BOSS WARNING',   sub: 'Boss spawn incoming',    color: 'red',   audio: 'boss'      },
     { at: 25*60+30,   label: 'JUNGLE  30 SEC', sub: 'Jungle spawns in 0:30',  color: 'amber', audio: 'jungle30'  },
-    { at: 25*60+15,   label: 'JUNGLE  15 SEC', sub: 'Jungle spawns in 0:15',  color: 'amber', audio: 'jungle15'  },
     { at: 25*60,      label: 'JUNGLE ACTIVE',  sub: 'Jungle is up now!',      color: 'red',   audio: 'jungleNow' },
 
     // ── JUNGLE 20 ────────────────────────────────────────────────────
     { at: 21*60,      label: 'JUNGLE  1 MIN',  sub: 'Jungle spawns in 1:00',  color: 'amber', audio: 'jungle1'   },
     { at: 20*60+30,   label: 'JUNGLE  30 SEC', sub: 'Jungle spawns in 0:30',  color: 'amber', audio: 'jungle30'  },
-    { at: 20*60+15,   label: 'JUNGLE  15 SEC', sub: 'Jungle spawns in 0:15',  color: 'amber', audio: 'jungle15'  },
     { at: 20*60,      label: 'JUNGLE ACTIVE',  sub: 'Jungle is up now!',      color: 'red',   audio: 'jungleNow' },
 
     // ── JUNGLE 15 ────────────────────────────────────────────────────
     { at: 16*60,      label: 'JUNGLE  1 MIN',  sub: 'Jungle spawns in 1:00',  color: 'amber', audio: 'jungle1'   },
+    { at: 15*60+45,   label: 'BOSS WARNING',   sub: 'Boss spawn incoming',    color: 'red',   audio: 'boss'      },
     { at: 15*60+30,   label: 'JUNGLE  30 SEC', sub: 'Jungle spawns in 0:30',  color: 'amber', audio: 'jungle30'  },
-    { at: 15*60+15,   label: 'JUNGLE  15 SEC', sub: 'Jungle spawns in 0:15',  color: 'amber', audio: 'jungle15'  },
     { at: 15*60,      label: 'JUNGLE ACTIVE',  sub: 'Jungle is up now!',      color: 'red',   audio: 'jungleNow' },
 
     // ── JUNGLE 10 ────────────────────────────────────────────────────
     { at: 11*60,      label: 'JUNGLE  1 MIN',  sub: 'Jungle spawns in 1:00',  color: 'amber', audio: 'jungle1'   },
     { at: 10*60+30,   label: 'JUNGLE  30 SEC', sub: 'Jungle spawns in 0:30',  color: 'amber', audio: 'jungle30'  },
-    { at: 10*60+15,   label: 'JUNGLE  15 SEC', sub: 'Jungle spawns in 0:15',  color: 'amber', audio: 'jungle15'  },
     { at: 10*60,      label: 'JUNGLE ACTIVE',  sub: 'Jungle is up now!',      color: 'red',   audio: 'jungleNow' },
 
     // ── JUNGLE 5 ─────────────────────────────────────────────────────
     { at:  6*60,      label: 'JUNGLE  1 MIN',  sub: 'Jungle spawns in 1:00',  color: 'amber', audio: 'jungle1'   },
     { at:  5*60+30,   label: 'JUNGLE  30 SEC', sub: 'Jungle spawns in 0:30',  color: 'amber', audio: 'jungle30'  },
-    { at:  5*60+15,   label: 'JUNGLE  15 SEC', sub: 'Jungle spawns in 0:15',  color: 'amber', audio: 'jungle15'  },
     { at:  5*60,      label: 'JUNGLE ACTIVE',  sub: 'Jungle is up now!',      color: 'red',   audio: 'jungleNow' },
 
   ];
@@ -544,8 +541,7 @@
     EVENTS.forEach((ev, i) => {
       if (!firedSet.has(i) && currentSecond <= ev.at && lastSeenSecond > ev.at) {
         firedSet.add(i);
-        if (!(ev.audio === 'jungle15' && !sound15On)) playAudio(ev.audio);
-        showEvent(ev);
+        if (!(ev.audio === 'jungle15' && !sound15On)) playAudio(ev.audio);        showEvent(ev);
       }
     });
     lastSeenSecond = currentSecond;
