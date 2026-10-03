@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Heal/QI Tracker</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@400;600;700;800&display=swap');
+
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --panel2: #1c2330;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #1f6feb;
+      --green-bright: #2ea043;
+      --border: #30363d;
+      --mono: 'Share Tech Mono', monospace;
+      --sans: 'Barlow', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      font-family: var(--sans);
+      color: var(--text);
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .layout {
+      width: 100%;
+      max-width: 1280px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* ── Top bar ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .topbar h1 { font-size: 1.3rem; font-weight: 800; letter-spacing: 0.02em; }
+    .topbar .left { display: flex; align-items: center; gap: 14px; }
+    .back {
+      color: var(--muted); text-decoration: none; font-family: var(--mono);
+      font-size: 0.8rem; letter-spacing: 0.1em;
+    }
+    .back:hover { color: var(--text); }
+
+    button {
+      border: none;
+      border-radius: 8px;
+      font-family: var(--sans);
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.05s;
+      letter-spacing: 0.03em;
+    }
+    button:active { transform: translateY(1px); }
+
+    .btn-settings {
+      background: #21262d; color: var(--text); border: 1px solid var(--border);
+      padding: 10px 16px; font-size: 0.9rem;
+    }
+    .btn-settings:hover { background: #2d333b; }
+
+    /* ── Section rows ── */
+    .section {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px 18px;
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .section-head {
+      display: flex; flex-direction: column; justify-content: center; gap: 4px;
+      border-right: 1px solid var(--border);
+      padding-right: 14px;
+    }
+    .section-head h2 {
+      font-size: 0.72rem; font-family: var(--mono); letter-spacing: 0.15em;
+      color: var(--muted); text-transform: uppercase;
+    }
+    .section-head .big { font-size: 1.15rem; font-weight: 800; }
+    .section-head .cd { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+    }
+
+    /* ── Shared slot button ── */
+    .slot {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 4px; padding: 14px 8px; border-radius: 10px;
+      border: 2px solid; min-height: 92px;
+      position: relative; overflow: hidden;
+      transition: background 0.2s, border-color 0.2s, color 0.2s;
+    }
+    .slot .p-name {
+      font-size: 1.05rem; letter-spacing: 0.03em; text-transform: uppercase; font-weight: 800;
+      max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .slot .p-time { font-family: var(--mono); font-size: 1.25rem; font-weight: 400; }
+    .slot .p-bar {
+      position: absolute; bottom: 0; left: 0; height: 3px;
+      background: currentColor; opacity: 0.5; transition: width 1s linear;
+    }
+
+    .slot.empty {
+      background: transparent !important; border: 2px dashed var(--border) !important;
+      color: var(--muted) !important; animation: none !important; box-shadow: none !important;
+    }
+    .slot.empty .p-name { font-size: 0.85rem; text-transform: none; font-weight: 600; }
+
+    /* ── Warn flashing (shared, speed from --flash-dur) ── */
+    @keyframes pulse-yellow {
+      0%, 100% { background: #3b2000; box-shadow: 0 0 0 0 rgba(250,204,21,0); }
+      50%      { background: #5a3800; box-shadow: 0 0 14px 4px rgba(250,204,21,0.55); }
+    }
+    @keyframes pulse-orange {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(234,88,12,0.3); }
+      50%      { box-shadow: 0 0 0 6px rgba(234,88,12,0); }
+    }
+
+    /* ════════ HEALER (unchanged look) ════════ */
+    .healer.state-ready { background: #1a3a26; border-color: var(--green-bright); color: #4ade80; }
+    .healer.state-ready:hover { background: #1f4a2e; }
+    .healer.state-active {
+      background: #431407; border-color: #ea580c; color: #fdba74;
+      animation: pulse-orange 1.2s ease-in-out infinite;
+    }
+    .healer.state-warn {
+      background: #3b2000; border-color: #facc15; color: #fef08a;
+      animation: pulse-yellow var(--flash-dur, 0.8s) ease-in-out infinite;
+    }
+
+    /* ════════ QI SHIELD (blue) ════════ */
+    .qi.state-ready { background: #0c2340; border-color: #3b82f6; color: #93c5fd; }
+    .qi.state-ready:hover { background: #10305a; }
+    .qi.state-active {
+      background: #172554; border-color: #60a5fa; color: #bfdbfe;
+      animation: pulse-blue 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse-blue {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(96,165,250,0.35); }
+      50%      { box-shadow: 0 0 0 6px rgba(96,165,250,0); }
+    }
+    .qi.state-warn {
+      background: #3b2000; border-color: #facc15; color: #fef08a;
+      animation: pulse-yellow var(--flash-dur, 0.8s) ease-in-out infinite;
+    }
+
+    /* Hold-to-reset fill */
+    .hold-fill {
+      position: absolute; inset: 0; pointer-events: none; z-index: 4;
+      background: rgba(255,255,255,0.22);
+      transform: scaleX(0); transform-origin: left;
+    }
+    .slot[data-holding] .hold-fill { transform: scaleX(1); transition: transform 0.6s linear; }
+    .slot { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+
+    /* EXTREME fire on the last 2 seconds */
+    .qi.on-fire.fire-extreme {
+      background: radial-gradient(ellipse at 50% 110%, #fff3b0 0%, #ffd000 18%, #ff5e00 42%, #d90000 70%, #4a0000 100%) !important;
+      border-color: #ffe066 !important;
+      animation: fire-extreme 0.09s ease-in-out infinite alternate !important;
+      text-shadow: 0 0 6px #fff, 0 0 14px #ffdd55, 0 0 26px #ff2a00;
+      z-index: 2;
+    }
+    .qi.on-fire.fire-extreme .p-time { font-size: 2rem; font-weight: 800; }
+    .qi.on-fire.fire-extreme::before, .qi.on-fire.fire-extreme::after { animation-duration: 0.45s; inset: -70% -20% 0 -20%; }
+    @keyframes fire-extreme {
+      0%   { transform: scale(1.02) rotate(-0.6deg);
+             box-shadow: 0 0 30px 12px rgba(255,60,0,0.95), 0 -18px 50px 14px rgba(255,200,40,0.85), 0 0 80px 20px rgba(255,0,0,0.45); }
+      100% { transform: scale(1.07) rotate(0.6deg);
+             box-shadow: 0 0 44px 18px rgba(255,30,0,1),   0 -26px 64px 20px rgba(255,230,90,0.95), 0 0 110px 30px rgba(255,40,0,0.6); }
+    }
+
+    /* Not allowed: shake + gentle ✕ */
+    .deny-x {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      font-size: 3.2rem; font-weight: 800; color: #f87171; pointer-events: none; z-index: 5;
+      text-shadow: 0 0 12px rgba(248,113,113,0.7); opacity: 0; transform: scale(0.6);
+    }
+    .slot[data-deny] { animation: deny-shake 0.45s ease-in-out !important; }
+    .slot[data-deny] .deny-x { animation: deny-pop 1s ease-out forwards; }
+    @keyframes deny-shake {
+      0%, 100% { transform: translateX(0); }
+      15% { transform: translateX(-7px); } 30% { transform: translateX(6px); }
+      45% { transform: translateX(-5px); } 60% { transform: translateX(4px); }
+      75% { transform: translateX(-2px); }
+    }
+    @keyframes deny-pop {
+      0% { opacity: 0; transform: scale(0.6); }
+      25% { opacity: 1; transform: scale(1); }
+      70% { opacity: 1; transform: scale(1); }
+      100% { opacity: 0; transform: scale(1.1); }
+    }
+
+    /* cell wrapper so embers can sit just under a box */
+    .cell { position: relative; display: flex; }
+    .cell > .slot { flex: 1; width: 100%; }
+    #qiRow { padding-bottom: 14px; }
+
+    /* Burnt-wood embers under QI slot 2 (fire left unclicked) */
+    .embers {
+      position: absolute; left: 8%; right: 8%; bottom: -13px; height: 11px;
+      border-radius: 6px; pointer-events: none; display: none;
+      background:
+        radial-gradient(circle at 10% 50%, #ff6a00 0 2px, transparent 3px),
+        radial-gradient(circle at 27% 40%, #ffb703 0 1.5px, transparent 3px),
+        radial-gradient(circle at 45% 60%, #ff4d00 0 2px, transparent 3px),
+        radial-gradient(circle at 63% 45%, #ffcc4d 0 1.5px, transparent 3px),
+        radial-gradient(circle at 80% 55%, #ff5a1f 0 2px, transparent 3px),
+        radial-gradient(circle at 93% 45%, #ffa200 0 1.5px, transparent 3px),
+        radial-gradient(circle at 4% 55%, #ff8c1a 0 1.5px, transparent 3px),
+        radial-gradient(circle at 18% 35%, #ffd166 0 1px, transparent 2px),
+        radial-gradient(circle at 36% 55%, #ff3d00 0 2px, transparent 3px),
+        radial-gradient(circle at 53% 35%, #ffb347 0 1px, transparent 2px),
+        radial-gradient(circle at 71% 60%, #ff7b00 0 2px, transparent 3px),
+        radial-gradient(circle at 88% 35%, #ffe08a 0 1px, transparent 2px),
+        repeating-linear-gradient(90deg, #1a0d06 0 14px, #2b1509 14px 22px, #120804 22px 30px);
+      box-shadow: 0 0 10px 2px rgba(255,90,0,0.45), inset 0 -2px 4px rgba(255,80,0,0.5);
+      animation: ember-glow 1.6s ease-in-out infinite;
+    }
+    .embers.on { display: block; }
+    .embers::before, .embers::after {
+      content: ""; position: absolute; inset: -16px 0 0 0;
+      background:
+        radial-gradient(circle at 8% 90%, rgba(255,150,40,0.95) 0 1px, transparent 2px),
+        radial-gradient(circle at 20% 95%, rgba(255,210,90,0.95) 0 1.2px, transparent 2px),
+        radial-gradient(circle at 34% 88%, rgba(255,110,20,0.95) 0 1px, transparent 2px),
+        radial-gradient(circle at 47% 96%, rgba(255,180,60,0.95) 0 1.2px, transparent 2px),
+        radial-gradient(circle at 61% 90%, rgba(255,90,10,0.95) 0 1px, transparent 2px),
+        radial-gradient(circle at 74% 95%, rgba(255,220,110,0.95) 0 1.2px, transparent 2px),
+        radial-gradient(circle at 88% 89%, rgba(255,130,30,0.95) 0 1px, transparent 2px),
+        radial-gradient(circle at 96% 94%, rgba(255,200,80,0.95) 0 1px, transparent 2px);
+      animation: ember-rise 2.2s linear infinite;
+    }
+    .embers::before { animation-duration: 1.7s; animation-delay: -0.9s; transform: translateX(6px); }
+    @keyframes ember-glow {
+      0%, 100% { filter: brightness(0.7); box-shadow: 0 0 6px 1px rgba(255,90,0,0.3), inset 0 -2px 4px rgba(255,80,0,0.4); }
+      50%      { filter: brightness(1.25); box-shadow: 0 0 14px 3px rgba(255,110,0,0.6), inset 0 -2px 6px rgba(255,120,0,0.7); }
+    }
+    @keyframes ember-rise {
+      0% { transform: translateY(0); opacity: 1; }
+      100% { transform: translateY(-12px); opacity: 0; }
+    }
+
+    /* QI ON FIRE — slot 2, triggered when slot 1 is clicked */
+    .qi.on-fire {
+      border-color: #ff3b1f !important;
+      color: #fff7ed !important;
+      background: radial-gradient(ellipse at 50% 120%, #ffb703 0%, #ff4d00 35%, #b00000 70%, #3a0000 100%) !important;
+      animation: fire-flicker 0.18s ease-in-out infinite alternate !important;
+      text-shadow: 0 0 8px #ffdd55, 0 0 16px #ff4d00;
+    }
+    .qi.on-fire::before, .qi.on-fire::after {
+      content: ""; position: absolute; inset: -40% -10% 0 -10%;
+      background:
+        radial-gradient(circle at 15% 80%, rgba(255,230,120,0.9) 0 2px, transparent 3px),
+        radial-gradient(circle at 35% 90%, rgba(255,140,0,0.9) 0 2px, transparent 3px),
+        radial-gradient(circle at 55% 85%, rgba(255,240,150,0.9) 0 1.5px, transparent 3px),
+        radial-gradient(circle at 75% 95%, rgba(255,90,0,0.9) 0 2px, transparent 3px),
+        radial-gradient(circle at 90% 80%, rgba(255,220,100,0.9) 0 1.5px, transparent 3px);
+      animation: sparks 0.9s linear infinite;
+      pointer-events: none;
+    }
+    .qi.on-fire::after { animation-delay: -0.45s; filter: hue-rotate(-15deg); }
+    .qi.on-fire .p-time { font-weight: 700; }
+    @keyframes fire-flicker {
+      0%   { box-shadow: 0 0 18px 6px rgba(255,77,0,0.75), 0 -6px 26px 4px rgba(255,183,3,0.55); }
+      100% { box-shadow: 0 0 30px 10px rgba(255,30,0,0.9),  0 -12px 36px 8px rgba(255,210,60,0.7); }
+    }
+    @keyframes sparks {
+      0%   { transform: translateY(0);     opacity: 1; }
+      100% { transform: translateY(-60%);  opacity: 0; }
+    }
+
+    /* ════════ MAIN TANK (yellow, bigger) ════════ */
+    .tank-row { display: grid; grid-template-columns: 1fr; }
+    .tank {
+      min-height: 140px; cursor: pointer;
+      background: #3a3000; border: 3px solid #eab308; color: #fde047;
+    }
+    .tank:hover { background: #4a3d00; }
+    .tank .p-name { font-size: 1.5rem; }
+    .tank .p-time {
+      font-size: 2.6rem; line-height: 1;
+      transition: font-size 0.25s ease;
+    }
+    .tank.state-active { background: #4a3b00; box-shadow: 0 0 0 0 transparent; }
+    .tank.state-danger {
+      color: #fff; border-color: #ef4444;
+      animation: tank-red var(--flash-dur, 0.5s) ease-in-out infinite;
+    }
+    .tank.state-danger .p-time { font-size: 4.6rem; }
+    @keyframes tank-red {
+      0%, 100% { background: #450a0a; box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+      50%      { background: #b91c1c; box-shadow: 0 0 28px 8px rgba(239,68,68,0.7); }
+    }
+
+    /* ── Modal ── */
+    .modal-bg {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.65);
+      display: none; align-items: center; justify-content: center; padding: 20px; z-index: 50;
+    }
+    .modal-bg.open { display: flex; }
+    .modal {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+      padding: 22px; width: 100%; max-width: 900px; max-height: 90vh; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 18px;
+    }
+    .modal h3 { font-size: 1.1rem; font-weight: 800; }
+    .modal-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .mgroup {
+      background: var(--panel2); border: 1px solid var(--border); border-radius: 12px;
+      padding: 14px; display: flex; flex-direction: column; gap: 8px;
+    }
+    .mgroup h4 {
+      font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+    .mgroup.t h4 { color: #fde047; } .mgroup.q h4 { color: #93c5fd; } .mgroup.h h4 { color: #4ade80; }
+    label {
+      font-size: 0.7rem; font-weight: 600; color: var(--muted);
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .modal input {
+      width: 100%; padding: 8px 10px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; font-size: 0.95rem; font-family: var(--mono); color: var(--text); outline: none;
+    }
+    .modal input:focus { border-color: var(--accent); }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+    .btn-save { background: var(--accent); color: #fff; padding: 10px 18px; }
+    .btn-cancel, .btn-defaults {
+      background: #21262d; color: var(--text); border: 1px solid var(--border); padding: 10px 16px;
+    }
+    .btn-defaults { margin-right: auto; }
+
+    @media (max-width: 860px) {
+      .section { grid-template-columns: 1fr; }
+      .section-head { border-right: none; border-bottom: 1px solid var(--border); padding: 0 0 10px; }
+      .row { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+      .modal-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+
+    <div class="topbar">
+      <div class="left">
+        <a class="back" href="index.html">← TOOLKIT</a>
+        <h1>⏳ Heal / QI Tracker</h1>
+      </div>
+      <button class="btn-settings" id="openSettings">⚙️ Names &amp; Timings</button>
+    </div>
+
+    <!-- MAIN TANK -->
+    <section class="section">
+      <div class="section-head">
+        <h2>Main Tank</h2>
+        <div class="big">Cooldown</div>
+        <div class="cd" id="tankCdLabel">60s</div>
+      </div>
+      <div class="tank-row">
+        <button class="slot tank state-ready" id="tankBtn">
+          <span class="p-name" id="tankName">Wifelover</span>
+          <span class="p-time" id="tankTime">Ready</span>
+          <span class="p-bar" id="tankBar" style="width:0%"></span>
+        </button>
+      </div>
+    </section>
+
+    <!-- QI SHIELD -->
+    <section class="section">
+      <div class="section-head">
+        <h2>QI Shield</h2>
+        <div class="big">Cooldowns</div>
+        <div class="cd" id="qiCdLabel">60s</div>
+      </div>
+      <div class="row" id="qiRow"></div>
+    </section>
+
+    <!-- HEALER -->
+    <section class="section">
+      <div class="section-head">
+        <h2>Healer</h2>
+        <div class="big">Cooldowns</div>
+        <div class="cd" id="healerCdLabel">60s</div>
+      </div>
+      <div class="row" id="healerRow"></div>
+    </section>
+
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div class="modal-bg" id="modalBg">
+    <div class="modal">
+      <h3>⚙️ Names &amp; Timings</h3>
+      <div class="modal-grid">
+        <div class="mgroup t">
+          <h4>Main Tank</h4>
+          <label>Cooldown (seconds)</label>
+          <input type="number" min="5" max="999" id="in-tank-cd" />
+          <label>Name</label>
+          <input type="text" id="in-tank-name" placeholder="Enter name" />
+        </div>
+        <div class="mgroup q">
+          <h4>QI Shield</h4>
+          <label>Cooldown (seconds)</label>
+          <input type="number" min="5" max="999" id="in-qi-cd" />
+          <label>Names (slot 1 click → slot 2 on fire)</label>
+          <div id="in-qi-names" style="display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+        <div class="mgroup h">
+          <h4>Healer</h4>
+          <label>Cooldown (seconds)</label>
+          <input type="number" min="5" max="999" id="in-healer-cd" />
+          <label>Names</label>
+          <div id="in-healer-names" style="display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-defaults" id="resetDefaults">Restore defaults</button>
+        <button class="btn-cancel" id="closeSettings">Cancel</button>
+        <button class="btn-save" id="saveSettings">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ════════ DEFAULTS — edit here ════════
+    const DEFAULTS = {
+      tank:   { cd: 60, name: 'Wifelover' },
+      qi:     { cd: 60, names: ['GreekMF', 'LeonFYR', 'Phoeny', '', ''] },   // clicking slot 1 sets slot 2 on fire
+      healer: { cd: 60, names: ['Shakulina', 'Linnn', 'Hazel', '', ''] },
+    };
+    const SLOTS = 5;
+    const WARN_THRESHOLD = 20;     // QI/healer yellow flash from here
+    const TANK_DANGER = 15;        // tank flashes red from here
+    const FIRE_SLOT = 1;           // QI slot 2 (0-based) is the one that burns
+    const FIRE_DURATION = 8;       // fire countdown from 8
+    const STORE_KEY = 'gvg-heal-qi-settings';
+
+    // ── Load settings (falls back to defaults) ──
+    function clone(o) { return JSON.parse(JSON.stringify(o)); }
+    let settings = clone(DEFAULTS);
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORE_KEY));
+      if (saved && saved.tank && saved.qi && saved.healer) settings = saved;
+    } catch (e) {}
+
+    function saveStore() {
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(settings)); } catch (e) {}
+    }
+
+    function formatTime(s) {
+      const m = Math.floor(s / 60), sec = s % 60;
+      return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    }
+
+    // ════════ QI + HEALER SLOTS ════════
+    const groups = {
+      qi:     { rowEl: document.getElementById('qiRow'),     cls: 'qi',     people: [] },
+      healer: { rowEl: document.getElementById('healerRow'), cls: 'healer', people: [] },
+    };
+
+    function buildGroup(key) {
+      const g = groups[key];
+      g.people.forEach(p => clearInterval(p.timerId));
+      g.rowEl.innerHTML = '';
+      g.people = [];
+
+      for (let i = 0; i < SLOTS; i++) {
+        const name = (settings[key].names[i] || '').trim();
+        const p = { idx: i, name, remaining: 0, timerId: null, state: 'ready', btn: null };
+        const btn = document.createElement('button');
+        btn.className = `slot ${g.cls} state-ready` + (name ? '' : ' empty');
+        btn.innerHTML = `
+          <span class="p-name">${name ? escapeHtml(name) : '+ Enter name'}</span>
+          <span class="p-time">${name ? 'Ready' : ''}</span>
+          <span class="p-bar" style="width:0%"></span>`;
+        btn.addEventListener('click', () => name ? triggerPerson(key, i) : openSettings());
+        if (name) addHold(btn, () => resetPerson(key, i));
+        p.btn = btn;
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.appendChild(btn);
+        const emb = document.createElement('div');
+        emb.className = 'embers';
+        cell.appendChild(emb);
+        p.embers = emb;
+        g.rowEl.appendChild(cell);
+        g.people.push(p);
+      }
+    }
+
+    function triggerPerson(key, i) {
+      const p = groups[key].people[i];
+
+      // Clicking QI slot 2 while burning or embering → clear it and start its cooldown
+      if (key === 'qi' && i === FIRE_SLOT && (fire.active || fire.embers)) {
+        clearFire();
+        startPerson(key, i);
+        return;
+      }
+
+      // Running → reset to ready (same as original)
+      if (p.state !== 'ready') {
+        clearInterval(p.timerId);
+        p.timerId = null; p.remaining = 0; p.state = 'ready';
+        renderPerson(key, i);
+        return;
+      }
+      // Slot 1 can't fire while slot 2 is still cooling down
+      if (key === 'qi' && i === 0) {
+        const s2 = groups.qi.people[FIRE_SLOT];
+        if (s2 && s2.name && s2.state !== 'ready') { denyClick(p.btn); return; }
+      }
+
+      startPerson(key, i);
+      // QI slot 1 used → QI slot 2 catches fire
+      if (key === 'qi' && i === 0) startFire();
+    }
+
+    function denyClick(btn) {
+      let x = btn.querySelector('.deny-x');
+      if (!x) { x = document.createElement('span'); x.className = 'deny-x'; x.textContent = '✕'; btn.appendChild(x); }
+      delete btn.dataset.deny;
+      void btn.offsetWidth;                 // restart animation on repeat clicks
+      btn.dataset.deny = '';
+      clearTimeout(btn._denyT);
+      btn._denyT = setTimeout(() => delete btn.dataset.deny, 1000);
+    }
+
+    // Hold → back to Ready (fire/embers on slot 2 cleared too)
+    function resetPerson(key, i) {
+      const p = groups[key].people[i];
+      clearInterval(p.timerId);
+      p.timerId = null; p.remaining = 0; p.state = 'ready';
+      if (key === 'qi' && i === FIRE_SLOT) clearFire();
+      renderPerson(key, i);
+    }
+
+    // ════════ HOLD TO RESET (0.6s) ════════
+    const HOLD_MS = 600;
+    function addHold(btn, onReset) {
+      const fill = document.createElement('span');
+      fill.className = 'hold-fill';
+      btn.appendChild(fill);
+      let t = null;
+      const cancel = () => { clearTimeout(t); t = null; delete btn.dataset.holding; };
+      btn.addEventListener('pointerdown', () => {
+        cancel();
+        btn.dataset.holding = '';
+        t = setTimeout(() => { cancel(); btn._held = true; onReset(); }, HOLD_MS);
+      });
+      ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => btn.addEventListener(ev, cancel));
+      btn.addEventListener('contextmenu', e => e.preventDefault());
+      // swallow the click that follows a completed hold
+      btn.addEventListener('click', e => {
+        if (btn._held) { btn._held = false; e.stopImmediatePropagation(); }
+      }, true);
+    }
+
+    function startPerson(key, i) {
+      const p = groups[key].people[i];
+      const cd = settings[key].cd;
+      clearInterval(p.timerId);
+      p.remaining = cd;
+      p.state = p.remaining > WARN_THRESHOLD ? 'active' : 'warn';
+      renderPerson(key, i);
+
+      p.timerId = setInterval(() => {
+        p.remaining -= 1;
+        if (p.remaining <= 0) {
+          clearInterval(p.timerId);
+          p.timerId = null; p.remaining = 0; p.state = 'ready';
+        } else {
+          p.state = p.remaining <= WARN_THRESHOLD ? 'warn' : 'active';
+        }
+        renderPerson(key, i);
+      }, 1000);
+    }
+
+    function renderPerson(key, i) {
+      const g = groups[key], p = g.people[i];
+      if (!p || !p.name) return;   // slot not built yet / empty
+      const btn = p.btn;
+      const timeEl = btn.querySelector('.p-time');
+      const barEl = btn.querySelector('.p-bar');
+      const isFireSlot = key === 'qi' && i === FIRE_SLOT;
+      const fireCls = (isFireSlot && fire.active) ? (' on-fire' + (fire.remaining <= 2 ? ' fire-extreme' : '')) : '';
+      if (p.embers) p.embers.classList.toggle('on', isFireSlot && fire.embers);
+
+      if (p.state === 'ready') {
+        btn.className = `slot ${g.cls} state-ready${fireCls}`;
+        timeEl.textContent = fireCls ? `🔥 ${fire.remaining}` : 'Ready';
+        barEl.style.width = '0%';
+        btn.style.removeProperty('--flash-dur');
+      } else {
+        if (p.state === 'warn') {
+          const dur = Math.max(0.12, 0.8 * (p.remaining / WARN_THRESHOLD));
+          btn.style.setProperty('--flash-dur', dur.toFixed(3) + 's');
+        }
+        btn.className = `slot ${g.cls} state-${p.state}${fireCls}`;
+        timeEl.textContent = fireCls ? `🔥 ${fire.remaining}` : formatTime(p.remaining);
+        barEl.style.width = (p.remaining / settings[key].cd) * 100 + '%';
+      }
+    }
+
+    // ════════ FIRE (QI slot 2) ════════
+    const fire = { active: false, embers: false, remaining: 0, endAt: 0, timerId: null };
+
+    function startFire() {
+      const p = groups.qi.people[FIRE_SLOT];
+      if (!p || !p.name) return;
+      clearInterval(fire.timerId);
+      fire.active = true;
+      fire.embers = false;                       // new fire wipes old embers
+      fire.endAt = Date.now() + FIRE_DURATION * 1000;
+      fire.remaining = FIRE_DURATION;
+      renderPerson('qi', FIRE_SLOT);
+      fire.timerId = setInterval(() => {
+        fire.remaining = Math.max(0, Math.ceil((fire.endAt - Date.now()) / 1000));
+        if (fire.remaining <= 0) { burnOut(); return; }
+        renderPerson('qi', FIRE_SLOT);
+      }, 200);
+    }
+
+    // Fire runs out → auto-start slot 2's cooldown, as if it was clicked
+    function burnOut() {
+      clearFire();
+      startPerson('qi', FIRE_SLOT);
+    }
+
+    // Clicked / reset → no fire, no embers
+    function clearFire() {
+      clearInterval(fire.timerId);
+      fire.timerId = null;
+      fire.active = false;
+      fire.embers = false;
+      renderPerson('qi', FIRE_SLOT);
+    }
+
+    // ════════ MAIN TANK ════════
+    const tankBtn = document.getElementById('tankBtn');
+    const tankName = document.getElementById('tankName');
+    const tankTime = document.getElementById('tankTime');
+    const tankBar = document.getElementById('tankBar');
+    const tank = { remaining: 0, timerId: null, endAt: 0 };
+
+    function renderTank() {
+      if (tank.remaining <= 0) {
+        tankBtn.className = 'slot tank state-ready';
+        tankTime.textContent = 'Ready';
+        tankBar.style.width = '0%';
+        tankBtn.style.removeProperty('--flash-dur');
+        return;
+      }
+      if (tank.remaining <= TANK_DANGER) {
+        const dur = Math.max(0.15, 0.6 * (tank.remaining / TANK_DANGER));
+        tankBtn.style.setProperty('--flash-dur', dur.toFixed(3) + 's');
+        tankBtn.className = 'slot tank state-danger';
+      } else {
+        tankBtn.className = 'slot tank state-active';
+      }
+      tankTime.textContent = formatTime(tank.remaining);
+      tankBar.style.width = (tank.remaining / settings.tank.cd) * 100 + '%';
+    }
+
+    function startTank() {
+      clearInterval(tank.timerId);
+      tank.endAt = Date.now() + settings.tank.cd * 1000;
+      tank.remaining = settings.tank.cd;
+      renderTank();
+      tank.timerId = setInterval(() => {
+        tank.remaining = Math.max(0, Math.ceil((tank.endAt - Date.now()) / 1000));
+        if (tank.remaining <= 0) { clearInterval(tank.timerId); tank.timerId = null; }
+        renderTank();
+      }, 200);
+    }
+
+    function resetTank() {
+      clearInterval(tank.timerId);
+      tank.timerId = null;
+      tank.remaining = 0;
+      renderTank();
+    }
+
+    // Tap = start / restart · Hold = reset to Ready
+    tankBtn.addEventListener('click', startTank);
+    addHold(tankBtn, resetTank);
+
+    // ════════ SETTINGS MODAL ════════
+    const modalBg = document.getElementById('modalBg');
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+    }
+
+    function fillNameInputs(containerId, names) {
+      const box = document.getElementById(containerId);
+      box.innerHTML = '';
+      for (let i = 0; i < SLOTS; i++) {
+        const inp = document.createElement('input');
+        inp.type = 'text';
+        inp.placeholder = `Slot ${i + 1} — enter name`;
+        inp.value = names[i] || '';
+        box.appendChild(inp);
+      }
+    }
+
+    function populateModal(src) {
+      document.getElementById('in-tank-cd').value = src.tank.cd;
+      document.getElementById('in-tank-name').value = src.tank.name;
+      document.getElementById('in-qi-cd').value = src.qi.cd;
+      document.getElementById('in-healer-cd').value = src.healer.cd;
+      fillNameInputs('in-qi-names', src.qi.names);
+      fillNameInputs('in-healer-names', src.healer.names);
+    }
+
+    function openSettings() { populateModal(settings); modalBg.classList.add('open'); }
+    function closeSettings() { modalBg.classList.remove('open'); }
+
+    function readCd(id) {
+      const v = parseInt(document.getElementById(id).value, 10);
+      return isNaN(v) || v < 1 ? 60 : Math.min(v, 999);
+    }
+    function readNames(id) {
+      return [...document.querySelectorAll(`#${id} input`)].map(i => i.value.trim());
+    }
+
+    document.getElementById('openSettings').addEventListener('click', openSettings);
+    document.getElementById('closeSettings').addEventListener('click', closeSettings);
+    modalBg.addEventListener('click', e => { if (e.target === modalBg) closeSettings(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettings(); });
+    document.getElementById('resetDefaults').addEventListener('click', () => populateModal(DEFAULTS));
+
+    document.getElementById('saveSettings').addEventListener('click', () => {
+      settings = {
+        tank:   { cd: readCd('in-tank-cd'),   name: document.getElementById('in-tank-name').value.trim() || 'Main Tank' },
+        qi:     { cd: readCd('in-qi-cd'),     names: readNames('in-qi-names') },
+        healer: { cd: readCd('in-healer-cd'), names: readNames('in-healer-names') },
+      };
+      saveStore();
+      applySettings();
+      closeSettings();
+    });
+
+    function applySettings() {
+      clearFire();
+      clearInterval(tank.timerId);
+      tank.remaining = 0;
+      tankName.textContent = settings.tank.name;
+      document.getElementById('tankCdLabel').textContent = settings.tank.cd + 's';
+      document.getElementById('qiCdLabel').textContent = settings.qi.cd + 's';
+      document.getElementById('healerCdLabel').textContent = settings.healer.cd + 's';
+      buildGroup('qi');
+      buildGroup('healer');
+      renderTank();
+    }
+
+    // ── Init ──
+    applySettings();
+  </script>
+</body>
+</html>

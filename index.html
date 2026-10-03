@@ -134,6 +134,9 @@
   }
   @media (max-width: 680px) { .buttons { grid-template-columns: 1fr; } }
 
+  /* third button spans the full row beneath the first two */
+  .plate.wide { grid-column: 1 / -1; min-height: 190px; }
+
   .plate {
     position: relative;
     display: flex;
@@ -268,6 +271,12 @@
         <span class="icon">⚔️</span>
         <span class="label">Roster Builder</span>
         <span class="sub">Draft &amp; assign your teams</span>
+      </a>
+
+      <a class="plate wide" href="Heal_qi_tracker.html">
+        <span class="icon">⏳</span>
+        <span class="label">Heal/QI Tracker</span>
+        <span class="sub">Cooldowns &amp; recovery timing</span>
       </a>
     </nav>
 
